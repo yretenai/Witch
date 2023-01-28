@@ -3,9 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luminous", "Luminous\Luminous.csproj", "{1FF1CD7C-9B52-436F-84BC-D274A996EB0A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scarlet", "Scarlet\Scarlet.csproj", "{1FF1CD7C-9B52-436F-84BC-D274A996EB0A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Witch", "Witch\Witch.csproj", "{B448C006-AAAA-4462-8ACA-4FE16EB34BEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scarlet.Structures", "Scarlet.Structures\Scarlet.Structures.csproj", "{B5A80BDB-6727-4B9C-BAC1-EDB7A84CDB26}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DragonLib", "DragonLib\DragonLib\DragonLib.csproj", "{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +28,13 @@ Global
 		{B448C006-AAAA-4462-8ACA-4FE16EB34BEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B448C006-AAAA-4462-8ACA-4FE16EB34BEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B448C006-AAAA-4462-8ACA-4FE16EB34BEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5A80BDB-6727-4B9C-BAC1-EDB7A84CDB26}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5A80BDB-6727-4B9C-BAC1-EDB7A84CDB26}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5A80BDB-6727-4B9C-BAC1-EDB7A84CDB26}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5A80BDB-6727-4B9C-BAC1-EDB7A84CDB26}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
