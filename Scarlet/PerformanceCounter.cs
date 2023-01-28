@@ -1,23 +1,21 @@
-﻿using Serilog;
+﻿using System.Diagnostics;
+using Serilog;
 
 namespace Scarlet;
 
+[DebuggerNonUserCode, DebuggerStepThrough]
 public sealed class PerformanceCounter : IDisposable {
     private readonly string Name;
     private readonly DateTimeOffset StartTime;
-    private readonly bool Write;
 
-    public PerformanceCounter(string name, bool write = true) {
+    public PerformanceCounter(string name) {
         Name = name;
         StartTime = DateTimeOffset.Now;
-        Write = write;
     }
 
     public void Dispose() {
         var endTime = DateTimeOffset.Now;
         var elapsed = endTime - StartTime;
-        if (Write) {
-            Log.Debug($"[PERF] {Name}: {elapsed.TotalNanoseconds}ns");
-        }
+        Log.Debug($"[PERF] {Name}: {elapsed.TotalNanoseconds}ns");
     }
 }

@@ -1,4 +1,5 @@
-﻿using Scarlet.Archive;
+﻿using Scarlet;
+using Scarlet.Archive;
 using Serilog;
 
 namespace Witch;
@@ -18,13 +19,17 @@ internal class Program {
         foreach (var arg in args) {
             var earcFiles = Directory.GetFiles(Path.Combine(arg, "datas"), "*.earc", SearchOption.AllDirectories);
 
+            var files = 0u;
+            using var _perf = new PerformanceCounter(arg);
             foreach (var earcFile in earcFiles) {
                 using var earc = new EARC(earcFile);
+                files += earc.Header.FileCount;
 
-                foreach (var file in earc.FileEntries) {
-                    Log.Information(file.GetPath(earc.Buffer));
-                }
+                // foreach (var file in earc.FileEntries) {
+                // Log.Information(file.GetPath(earc.Buffer));
+                // }
             }
+            Log.Information("Files: {0}", files);
         }
     }
 }

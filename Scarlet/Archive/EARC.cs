@@ -15,8 +15,7 @@ namespace Scarlet.Archive;
 public class EARC : IDisposable {
     private static readonly Iron Iron = new(ArrayPool<byte>.Shared);
 
-    public EARC(string path) {
-        using var _perf = new PerformanceCounter("EARC`ctor");
+    public unsafe EARC(string path) {
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
         if (Stream.Length < Unsafe.SizeOf<EARCHeader>()) {
@@ -25,26 +24,25 @@ public class EARC : IDisposable {
             throw new InvalidDataException("File is too small to be an EARC archive.");
         }
 
-        EARCHeader header = new();
-        var blitHeader = new BlitSpan<EARCHeader>(ref header);
+        var header = stackalloc EARCHeader[1];
+        var blitHeader = new BlitSpan<EARCHeader>(ref header[0]);
         Stream.ReadExactly(blitHeader.GetByteSpan(0));
 
-        if (header.Magic != EARCHeader.MagicValue) {
+        if (header->Magic != EARCHeader.MagicValue) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is not an EARC archive.");
         }
 
         Stream.Position = 0;
-        Buffer = MemoryOwner<byte>.Allocate((int) header.DataOffset);
+        Buffer = MemoryOwner<byte>.Allocate((int) header->DataOffset);
         Stream.ReadExactly(Buffer.Span);
-        BlitFileEntries = new BlitStruct<EARCFile>(Buffer, (int) header.FATOffset, header.FileCount);
+        BlitFileEntries = new BlitStruct<EARCFile>(Buffer, (int) header->FATOffset, header->FileCount);
 
-        if (header.Version < 0) {
-            using var _perfDecrypt = new PerformanceCounter("EARC`DecryptFAT");
-            header.Version &= 0x7FFFFFFF;
-            var key = header.Checksum ^ EARCHeader.ChecksumXOR1;
-            if ((header.Flags & EARCFlags.AdvanceChecksum) != 0) {
+        if (header->Version < 0) {
+            header->Version &= 0x7FFFFFFF;
+            var key = header->Checksum ^ EARCHeader.ChecksumXOR1;
+            if ((header->Flags & EARCFlags.AdvanceChecksum) != 0) {
                 key ^= EARCHeader.ChecksumXOR2;
             }
 
@@ -62,7 +60,7 @@ public class EARC : IDisposable {
             }
         }
 
-        Header = header;
+        Header = header[0];
     }
 
     public Stream Stream { get; }
