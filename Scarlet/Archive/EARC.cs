@@ -53,7 +53,7 @@ public class EARC : IDisposable {
             for (var i = 0; i < blitFileEntries.Length; i++) {
                 ref var file = ref blitFileEntries[i];
                 var bytes = MemoryMarshal.Cast<byte, ulong>(blitFileEntries.GetByteSpan(i));
-                if ((file.Flags & EARCFileFlags.SkipObofuscation) == 0) {
+                if ((file.Flags & EARCFileFlags.SkipObfuscation) == 0) {
                     (file.CompressedSize, file.Size) = (file.Size, file.CompressedSize);
                     bytes[1] ^= fnv.HashNext(file.Checksum);
                     bytes[3] ^= fnv.HashNext(~file.Checksum);

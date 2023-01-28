@@ -9,7 +9,7 @@ public enum EARCFileFlags : uint {
     Patched = 0x10,
     Deleted = 0x20,
     Encrypted = 0x40,
-    SkipObofuscation = 0x80,
+    SkipObfuscation = 0x80,
     HasCompressType = 0x10000000, // this is an assumption, Forspoken has 1 + 4 always set when compressed.
     CompressTypeZlib = 0x20000000, // todo: validate this
     CompressTypeLz4 = 0x40000000,
