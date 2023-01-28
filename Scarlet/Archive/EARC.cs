@@ -88,7 +88,6 @@ public class EARC : IDisposable {
     }
 
     public unsafe MemoryOwner<byte> ReadFile(EARCFile file) {
-        using var _perf = new PerformanceCounter("EARC`ReadFile");
         var buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
         Stream.Position = file.DataOffset;
 
@@ -109,7 +108,6 @@ public class EARC : IDisposable {
             return buffer;
         }
 
-        using var _perfDecompress = new PerformanceCounter("EARC`DecompressFile");
         try {
             if ((file.Flags & EARCFileFlags.HasCompressType) == 0) {
                 file.Flags &= EARCFileFlags.HasCompressType;

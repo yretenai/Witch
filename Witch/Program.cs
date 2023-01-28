@@ -37,8 +37,11 @@ internal class Program {
                     continue;
                 }
 
-                var outputPath = Path.Combine(target.FullName, file.GetPath(earc.Buffer));
+                var path = file.GetPath(earc.Buffer);
+                var outputPath = Path.Combine(target.FullName, path);
                 outputPath.EnsureDirectoryExists();
+
+                Log.Information("Extracting {File}", path);
 
                 using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
                 using var input = earc.ReadFile(file);
