@@ -13,8 +13,8 @@ public record struct EARCHeader {
     public uint FileCount;
     public uint BlockSize;
     public uint FATOffset;
+    public uint DNTOffset;
     public uint FNTOffset;
-    public uint ANTOffset;
     public uint DataOffset;
     public EARCFlags Flags;
     public uint ChunkSize;

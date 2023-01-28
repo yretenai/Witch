@@ -1,13 +1,15 @@
-﻿using Scarlet;
+﻿using DragonLib;
+using Scarlet;
 using Scarlet.Archive;
+using Scarlet.Structures.Archive;
 using Serilog;
 
 namespace Witch;
 
 internal class Program {
     private static void Main(string[] args) {
-        if (args.Length < 1) {
-            Console.WriteLine("Usage: Witch.exe <path to game>");
+        if (args.Length < 2) {
+            Console.WriteLine("Usage: Witch.exe <path to game> <path to output>");
             return;
         }
 
@@ -16,20 +18,32 @@ internal class Program {
                     .WriteTo.Console()
                     .CreateLogger();
 
-        foreach (var arg in args) {
-            var earcFiles = Directory.GetFiles(Path.Combine(arg, "datas"), "*.earc", SearchOption.AllDirectories);
+        var earcFiles = Directory.GetFiles(Path.Combine(args[0], "datas"), "*.earc", SearchOption.AllDirectories);
+        var target = new DirectoryInfo(args[1]);
+        using var _perf = new PerformanceCounter(args[1]);
+        foreach (var earcFile in earcFiles) {
+            using var earc = new EARC(earcFile);
 
-            var files = 0u;
-            using var _perf = new PerformanceCounter(arg);
-            foreach (var earcFile in earcFiles) {
-                using var earc = new EARC(earcFile);
-                files += earc.Header.FileCount;
+            foreach (var file in earc.FileEntries) {
+                if ((file.Flags & EARCFileFlags.Reference) != 0) {
+                    continue;
+                }
 
-                // foreach (var file in earc.FileEntries) {
-                // Log.Information(file.GetPath(earc.Buffer));
-                // }
+                if ((file.Flags & EARCFileFlags.Deleted) != 0) {
+                    continue;
+                }
+
+                if ((file.Flags & EARCFileFlags.Loose) != 0) {
+                    continue;
+                }
+
+                var outputPath = Path.Combine(target.FullName, file.GetPath(earc.Buffer));
+                outputPath.EnsureDirectoryExists();
+
+                using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                using var input = earc.ReadFile(file);
+                output.Write(input.Span);
             }
-            Log.Information("Files: {0}", files);
         }
     }
 }

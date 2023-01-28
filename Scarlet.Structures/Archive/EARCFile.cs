@@ -9,13 +9,13 @@ public record struct EARCFile {
     public int Size;
     public int CompressedSize;
     public EARCFileFlags Flags;
-    public int PathOffset;
+    public int DataPathOffset;
     public long DataOffset;
-    public int ArchivePathOffset;
+    public int PathOffset;
     public byte Type;
     public byte Locale;
     public ushort Key;
 
+    public string GetDataPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, DataPathOffset);
     public string GetPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, PathOffset);
-    public string GetArchivePath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, ArchivePathOffset);
 }

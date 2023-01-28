@@ -1,20 +1,17 @@
-﻿using System.Buffers;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance.Buffers;
 using DragonLib.Hash;
 using DragonLib.Hash.Basis;
-using IronCompress;
+using K4os.Compression.LZ4.Streams;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
 public class EARC : IDisposable {
-    private static readonly Iron Iron = new(ArrayPool<byte>.Shared);
-
     public unsafe EARC(string path) {
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
@@ -52,10 +49,10 @@ public class EARC : IDisposable {
                 ref var file = ref blitFileEntries[i];
                 var bytes = MemoryMarshal.Cast<byte, ulong>(blitFileEntries.GetByteSpan(i));
                 if ((file.Flags & EARCFileFlags.SkipObfuscation) == 0) {
-                    (file.CompressedSize, file.Size) = (file.Size, file.CompressedSize);
+                    (file.Size, file.CompressedSize) = (file.CompressedSize, file.Size);
                     bytes[1] ^= fnv.HashNext(file.Checksum);
                     bytes[3] ^= fnv.HashNext(~file.Checksum);
-                    (file.CompressedSize, file.Size) = (file.Size, file.CompressedSize);
+                    (file.Size, file.CompressedSize) = (file.CompressedSize, file.Size);
                 }
             }
         }
@@ -103,7 +100,7 @@ public class EARC : IDisposable {
         }
 
         if ((file.Flags & EARCFileFlags.Encrypted) != 0) {
-            throw new NotSupportedException();
+            throw new NotSupportedException("EARC encryption is not supported.");
 
             using var _perfDecrypt = new PerformanceCounter("EARC`DecryptFile");
         }
@@ -114,26 +111,20 @@ public class EARC : IDisposable {
 
         using var _perfDecompress = new PerformanceCounter("EARC`DecompressFile");
         try {
-            var type = CompressType.Zlib;
-            if ((file.Flags & EARCFileFlags.HasCompressType) != 0) {
-                if ((file.Flags & EARCFileFlags.CompressTypeLz4) != 0) {
-                    type = CompressType.Lz4;
-                } else if ((file.Flags & EARCFileFlags.CompressTypeZlib) != 0) {
-                    type = CompressType.Zlib;
-                }
+            if ((file.Flags & EARCFileFlags.HasCompressType) == 0) {
+                file.Flags &= EARCFileFlags.HasCompressType;
+                file.Flags &= (EARCFileFlags) ((uint) EARCCompressionType.Zlib << 29);
+            } else {
+                Debug.Assert((EARCCompressionType) ((uint) file.Flags >> 7) != EARCCompressionType.Zlib, "Zlib compression is an assumption.");
             }
 
             var decompressed = MemoryOwner<byte>.Allocate(file.Size);
-            switch (type) {
-                case CompressType.Zlib: {
-                    if (!Debugger.IsAttached) {
-                        Debugger.Launch();
-                    }
+            using var inputPin = buffer.Memory.Pin();
+            using var input = new UnmanagedMemoryStream((byte*) inputPin.Pointer, buffer.Length);
 
-                    Debugger.Break();
-
-                    using var inputPin = buffer.Memory.Pin();
-                    using var input = new UnmanagedMemoryStream((byte*) inputPin.Pointer, file.CompressedSize);
+            switch ((EARCCompressionType) ((uint) file.Flags >> 29)) {
+                case EARCCompressionType.Zlib: {
+                    input.Position = 2; // skip zlib header
 
                     try {
                         using var zlib = new DeflateStream(input, CompressionMode.Decompress);
@@ -145,14 +136,10 @@ public class EARC : IDisposable {
 
                     break;
                 }
-                case > CompressType.None: { // IronCompress codecs, usually LZ4
+                case EARCCompressionType.LZ4Stream: {
                     try {
-                        var result = Iron.Decompress((Codec) type, buffer.Span, file.Size);
-                        if (result == null) {
-                            throw new InvalidDataException("Failed to decompress data.");
-                        }
-
-                        result.AsSpan().CopyTo(decompressed.Span);
+                        using var lz = LZ4Stream.Decode(input);
+                        lz.ReadExactly(decompressed.Span);
                     } catch {
                         decompressed.Dispose();
                         throw;
@@ -160,17 +147,15 @@ public class EARC : IDisposable {
 
                     break;
                 }
+                default: {
+                    decompressed.Dispose();
+                    throw new NotSupportedException("Unknown compression type.");
+                }
             }
 
             return decompressed;
         } finally {
             buffer.Dispose();
         }
-    }
-
-    private enum CompressType {
-        Zlib = -1,
-        None = 0,
-        Lz4 = Codec.LZ4,
     }
 }
