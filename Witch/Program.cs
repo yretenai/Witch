@@ -19,10 +19,15 @@ internal class Program {
                     .CreateLogger();
 
         var earcFiles = Directory.GetFiles(Path.Combine(args[0], "datas"), "*.earc", SearchOption.AllDirectories);
+        var ememFiles = Directory.GetFiles(Path.Combine(args[0], "datas"), "*.emem", SearchOption.AllDirectories);
+        var files = new List<string>(earcFiles.Length + ememFiles.Length);
+        files.AddRange(earcFiles);
+        files.AddRange(ememFiles);
+
         var target = new DirectoryInfo(args[1]).FullName;
         using var _perf = new PerformanceCounter<Program>();
-        foreach (var earcFile in earcFiles) {
-            using var earc = new EARC(earcFile);
+        foreach (var earcFile in files) {
+            using var earc = new EARC(earcFile, earcFile.EndsWith(".emem", StringComparison.OrdinalIgnoreCase));
 
             foreach (var file in earc.FileEntries) {
                 if ((file.Flags & EARCFileFlags.Reference) != 0) {
@@ -38,6 +43,11 @@ internal class Program {
                 }
 
                 var path = file.GetPath(earc.Buffer);
+                if (path.StartsWith("$archives")) {
+                    path = path[10..];
+                }
+
+                path = path.Trim('/', '\\');
                 var outputPath = Path.Combine(target, path);
                 outputPath.EnsureDirectoryExists();
 

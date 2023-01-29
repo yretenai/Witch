@@ -2,6 +2,7 @@
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using CommunityToolkit.HighPerformance.Buffers;
 using DragonLib.Hash;
 using DragonLib.Hash.Basis;
@@ -12,9 +13,34 @@ using Scarlet.Structures.Archive;
 namespace Scarlet.Archive;
 
 public class EARC : IDisposable {
-    public unsafe EARC(string path) {
+    public static readonly byte[] EMEM_KEY = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
+    public static readonly byte[] EARC_KEY = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
+
+    public unsafe EARC(string path, bool isEMEM = false) {
         using var _perf = new PerformanceCounter<PerformanceHost.EARC>();
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+        if (isEMEM) {
+            Stream.Seek(-1, SeekOrigin.End);
+            var encryption = (EARCEncryption) Stream.ReadByte();
+            Debug.Assert(encryption == EARCEncryption.AES, "encryption == EARCEncryption.AES");
+
+            using var aes = Aes.Create();
+            aes.Key = EMEM_KEY;
+            var iv = new byte[16];
+            Stream.Seek(-33, SeekOrigin.End);
+            Stream.ReadExactly(iv);
+            aes.IV = iv;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+
+            Stream.Position = 0;
+            using var decryptor = aes.CreateDecryptor();
+            var block = new byte[Stream.Length - 33];
+            Stream.ReadExactly(block);
+            Stream.Dispose();
+            Stream = new MemoryStream(decryptor.TransformFinalBlock(block, 0, block.Length));
+        }
 
         if (Stream.Length < Unsafe.SizeOf<EARCHeader>()) {
             Stream.Close();
@@ -89,25 +115,63 @@ public class EARC : IDisposable {
         }
     }
 
-    public unsafe MemoryOwner<byte> ReadFile(EARCFile file) {
+    public unsafe MemoryOwner<byte> ReadFile(in EARCFile file) {
         using var _perf = new PerformanceCounter<PerformanceHost.EARC.Read>();
-        var buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
         Stream.Position = file.DataOffset;
 
-        try {
-            Stream.ReadExactly(buffer.Span);
-        } catch {
-            buffer.Dispose();
-            throw;
+        var expandedKey = file.Seed == 0 ? 0 : (file.Seed * 0x41C64E6DUL + 0x3039) * 0x41C64E6DUL + 0x3039;
+        Debug.Assert(expandedKey == 0, "expandedKey == 0"); // note: validate if xoring with expandedKey is the same.
+
+        MemoryOwner<byte> buffer;
+
+        if ((file.Flags & EARCFileFlags.Encrypted) != 0) {
+            Stream.Position = file.DataOffset + file.CompressedSize - 1;
+            var encryption = (EARCEncryption) Stream.ReadByte();
+            Debug.Assert(encryption == EARCEncryption.AES, "encryption == EARCEncryption.AES");
+
+            Stream.Position = file.DataOffset + file.CompressedSize - 33;
+
+            using var aes = Aes.Create();
+            aes.Key = EARC_KEY;
+
+            var iv = new byte[16];
+            var iv64 = MemoryMarshal.Cast<byte, ulong>(iv);
+            Stream.ReadExactly(iv);
+            iv64[0] ^= expandedKey;
+            aes.IV = iv;
+            aes.Padding = PaddingMode.None;
+            Stream.Position = file.DataOffset;
+
+            using var decryptor = aes.CreateDecryptor();
+
+            buffer = MemoryOwner<byte>.Allocate(file.CompressedSize - 33);
+
+            try {
+                Stream.ReadExactly(buffer.Span);
+                var array = buffer.DangerousGetArray();
+                var decrypted = decryptor.TransformFinalBlock(array.Array!, array.Offset, array.Count).AsSpan();
+                decrypted.CopyTo(buffer.Span);
+            } catch {
+                Buffer.Dispose();
+                throw;
+            }
+        } else {
+            buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
+
+            try {
+                Stream.ReadExactly(buffer.Span);
+            } catch {
+                Buffer.Dispose();
+                throw;
+            }
+        }
+
+        if (file.Seed != 0 && (file.Flags & EARCFileFlags.Encrypted) != 0) {
+            var u64 = MemoryMarshal.Cast<byte, ulong>(buffer.Span);
+            u64[0] ^= expandedKey;
         }
 
         _perf.Stop();
-
-        if ((file.Flags & EARCFileFlags.Encrypted) != 0) {
-            throw new NotSupportedException("EARC encryption is not supported.");
-
-            using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EARC.Decrypt>();
-        }
 
         if ((file.Flags & EARCFileFlags.Compressed) == 0) {
             return buffer;
@@ -115,18 +179,19 @@ public class EARC : IDisposable {
 
         try {
             using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EARC.Decompress>();
-            if ((file.Flags & EARCFileFlags.HasCompressType) == 0) {
-                file.Flags &= EARCFileFlags.HasCompressType;
-                file.Flags &= (EARCFileFlags) ((uint) EARCCompressionType.Zlib << 29);
+            var flags = file.Flags;
+            if ((flags & EARCFileFlags.HasCompressType) == 0) {
+                flags &= EARCFileFlags.HasCompressType;
+                flags &= (EARCFileFlags) ((uint) EARCCompressionType.Zlib << 29);
             } else {
-                Debug.Assert((EARCCompressionType) ((uint) file.Flags >> 7) != EARCCompressionType.Zlib, "Zlib compression is an assumption.");
+                Debug.Assert((EARCCompressionType) ((uint) flags >> 7) != EARCCompressionType.Zlib, "Zlib compression is an assumption.");
             }
 
             var decompressed = MemoryOwner<byte>.Allocate(file.Size);
             using var inputPin = buffer.Memory.Pin();
             using var input = new UnmanagedMemoryStream((byte*) inputPin.Pointer, buffer.Length);
 
-            switch ((EARCCompressionType) ((uint) file.Flags >> 29)) {
+            switch ((EARCCompressionType) ((uint) flags >> 29)) {
                 case EARCCompressionType.Zlib: {
                     input.Position = 2; // skip zlib header
 

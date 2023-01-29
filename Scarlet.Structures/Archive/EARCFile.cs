@@ -14,7 +14,7 @@ public record struct EARCFile {
     public int PathOffset;
     public byte Type;
     public byte Locale;
-    public ushort Key;
+    public ushort Seed;
 
     public string GetDataPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, DataPathOffset);
     public string GetPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, PathOffset);
