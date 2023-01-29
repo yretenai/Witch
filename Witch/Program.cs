@@ -19,8 +19,8 @@ internal class Program {
                     .CreateLogger();
 
         var earcFiles = Directory.GetFiles(Path.Combine(args[0], "datas"), "*.earc", SearchOption.AllDirectories);
-        var target = new DirectoryInfo(args[1]);
-        using var _perf = new PerformanceCounter(args[1]);
+        var target = new DirectoryInfo(args[1]).FullName;
+        using var _perf = new PerformanceCounter<Program>();
         foreach (var earcFile in earcFiles) {
             using var earc = new EARC(earcFile);
 
@@ -38,7 +38,7 @@ internal class Program {
                 }
 
                 var path = file.GetPath(earc.Buffer);
-                var outputPath = Path.Combine(target.FullName, path);
+                var outputPath = Path.Combine(target, path);
                 outputPath.EnsureDirectoryExists();
 
                 Log.Information("Extracting {File}", path);
@@ -48,5 +48,10 @@ internal class Program {
                 output.Write(input.Span);
             }
         }
+
+        Log.Information("Done");
+        _perf.Stop();
+
+        IPerformanceCounter.PrintAll();
     }
 }

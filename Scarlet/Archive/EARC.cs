@@ -13,6 +13,7 @@ namespace Scarlet.Archive;
 
 public class EARC : IDisposable {
     public unsafe EARC(string path) {
+        using var _perf = new PerformanceCounter<PerformanceHost.EARC>();
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
         if (Stream.Length < Unsafe.SizeOf<EARCHeader>()) {
@@ -37,6 +38,7 @@ public class EARC : IDisposable {
         BlitFileEntries = new BlitStruct<EARCFile>(Buffer, (int) header->FATOffset, header->FileCount);
 
         if (header->Version < 0) {
+            using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EARCDeobfuscate>();
             header->Version &= 0x7FFFFFFF;
             var key = header->Checksum ^ EARCHeader.ChecksumXOR1;
             if ((header->Flags & EARCFlags.AdvanceChecksum) != 0) {
@@ -88,6 +90,7 @@ public class EARC : IDisposable {
     }
 
     public unsafe MemoryOwner<byte> ReadFile(EARCFile file) {
+        using var _perf = new PerformanceCounter<PerformanceHost.EARCRead>();
         var buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
         Stream.Position = file.DataOffset;
 
@@ -98,10 +101,12 @@ public class EARC : IDisposable {
             throw;
         }
 
+        _perf.Stop();
+
         if ((file.Flags & EARCFileFlags.Encrypted) != 0) {
             throw new NotSupportedException("EARC encryption is not supported.");
 
-            using var _perfDecrypt = new PerformanceCounter("EARC`DecryptFile");
+            using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EARCDecrypt>();
         }
 
         if ((file.Flags & EARCFileFlags.Compressed) == 0) {
@@ -109,6 +114,7 @@ public class EARC : IDisposable {
         }
 
         try {
+            using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EARCDecompress>();
             if ((file.Flags & EARCFileFlags.HasCompressType) == 0) {
                 file.Flags &= EARCFileFlags.HasCompressType;
                 file.Flags &= (EARCFileFlags) ((uint) EARCCompressionType.Zlib << 29);
