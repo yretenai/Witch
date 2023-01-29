@@ -5,9 +5,8 @@ using Serilog;
 namespace Scarlet;
 
 public interface IPerformanceCounter {
-    void Print();
-
     public static Hashtable Counters { get; } = new();
+    void Print();
 
     public static void PrintAll() {
     #if DEBUG
@@ -18,16 +17,27 @@ public interface IPerformanceCounter {
     }
 }
 
-[DebuggerNonUserCode, DebuggerStepThrough]
+[DebuggerNonUserCode] [DebuggerStepThrough]
 public sealed class PerformanceCounter<T> : IPerformanceCounter, IDisposable {
+    public PerformanceCounter() {
+        Start();
+    }
+
     // ReSharper disable once StaticMemberInGenericType
     private static int Count { get; set; }
+
     // ReSharper disable once StaticMemberInGenericType
     private static TimeSpan Elapsed { get; set; } = TimeSpan.Zero;
     private DateTimeOffset StartTime { get; set; }
 
-    public PerformanceCounter() {
-        Start();
+    public void Dispose() {
+        Stop();
+    }
+
+    public void Print() {
+    #if DEBUG
+        Log.Information("PerformanceCounter<{Type}>: {Average}ms avg ({Elapsed}ms total / {Count} runs)", typeof(T).FullName, (Elapsed / Count).TotalMilliseconds, Elapsed.TotalMilliseconds, Count);
+    #endif
     }
 
 
@@ -35,10 +45,6 @@ public sealed class PerformanceCounter<T> : IPerformanceCounter, IDisposable {
     private void Start() {
         StartTime = DateTimeOffset.Now;
         IPerformanceCounter.Counters[typeof(T)] = this;
-    }
-
-    public void Dispose() {
-        Stop();
     }
 
     [Conditional("DEBUG")]
@@ -53,11 +59,5 @@ public sealed class PerformanceCounter<T> : IPerformanceCounter, IDisposable {
         Count++;
 
         StartTime = DateTimeOffset.MinValue;
-    }
-
-    public void Print() {
-    #if DEBUG
-        Log.Information("PerformanceCounter<{Type}>: {Average}ms avg ({Elapsed}ms total / {Count} runs)", typeof(T).FullName, (Elapsed / Count).TotalMilliseconds, Elapsed.TotalMilliseconds, Count);
-    #endif
     }
 }

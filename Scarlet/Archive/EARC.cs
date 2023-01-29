@@ -13,8 +13,13 @@ using Scarlet.Structures.Archive;
 namespace Scarlet.Archive;
 
 public class EARC : IDisposable {
-    public static readonly byte[] EMEM_KEY = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
-    public static readonly byte[] EARC_KEY = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
+    private const uint MagicValue = 0x46415243; // FARC - File Archive
+    private const ulong ChecksumXOR1 = 0xCBF29CE484222325;
+    private const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
+    private const uint SeedExpansion = 0x41C64E6D;
+    private const uint SeedOffset = 0x3039;
+    private static readonly byte[] EMEMKey = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
+    private static readonly byte[] EARCKey = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
 
     public unsafe EARC(string path, bool isEMEM = false) {
         using var _perf = new PerformanceCounter<PerformanceHost.EARC>();
@@ -26,7 +31,7 @@ public class EARC : IDisposable {
             Debug.Assert(encryption == EARCEncryption.AES, "encryption == EARCEncryption.AES");
 
             using var aes = Aes.Create();
-            aes.Key = EMEM_KEY;
+            aes.Key = EMEMKey;
             var iv = new byte[16];
             Stream.Seek(-33, SeekOrigin.End);
             Stream.ReadExactly(iv);
@@ -52,7 +57,7 @@ public class EARC : IDisposable {
         var blitHeader = new BlitSpan<EARCHeader>(ref header[0]);
         Stream.ReadExactly(blitHeader.GetByteSpan(0));
 
-        if (header->Magic != EARCHeader.MagicValue) {
+        if (header->Magic != MagicValue) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is not an EARC archive.");
@@ -66,9 +71,9 @@ public class EARC : IDisposable {
         if (header->Version < 0) {
             using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EARC.Deobfuscate>();
             header->Version &= 0x7FFFFFFF;
-            var key = header->Checksum ^ EARCHeader.ChecksumXOR1;
+            var key = header->Checksum ^ ChecksumXOR1;
             if ((header->Flags & EARCFlags.AdvanceChecksum) != 0) {
-                key ^= EARCHeader.ChecksumXOR2;
+                key ^= ChecksumXOR2;
             }
 
             using var fnv = FowlerNollVo.Create((FNV64Basis) key);
@@ -119,7 +124,7 @@ public class EARC : IDisposable {
         using var _perf = new PerformanceCounter<PerformanceHost.EARC.Read>();
         Stream.Position = file.DataOffset;
 
-        var expandedKey = file.Seed == 0 ? 0 : (file.Seed * 0x41C64E6DUL + 0x3039) * 0x41C64E6DUL + 0x3039;
+        var expandedKey = file.Seed == 0 ? 0ul : ((ulong) file.Seed * SeedExpansion + SeedOffset) * SeedExpansion + SeedOffset;
         Debug.Assert(expandedKey == 0, "expandedKey == 0"); // note: validate if xoring with expandedKey is the same.
 
         MemoryOwner<byte> buffer;
@@ -132,7 +137,7 @@ public class EARC : IDisposable {
             Stream.Position = file.DataOffset + file.CompressedSize - 33;
 
             using var aes = Aes.Create();
-            aes.Key = EARC_KEY;
+            aes.Key = EARCKey;
 
             var iv = new byte[16];
             var iv64 = MemoryMarshal.Cast<byte, ulong>(iv);

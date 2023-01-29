@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using CommunityToolkit.HighPerformance.Buffers;
+﻿using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 
@@ -8,7 +7,7 @@ namespace Scarlet.Archive;
 public class EREP : IDisposable {
     public EREP(MemoryOwner<byte> erep) {
         Buffer = erep;
-        BlitRows = new BlitStruct<EREPRow>(Buffer, 0, (uint)erep.Length >> 4);
+        BlitRows = new BlitStruct<EREPRow>(Buffer, 0, (uint) erep.Length >> 4);
     }
 
     public MemoryOwner<byte> Buffer { get; }
@@ -23,6 +22,7 @@ public class EREP : IDisposable {
     ~EREP() {
         Dispose(false);
     }
+
     protected virtual void ReleaseUnmanagedResources() { }
 
     protected virtual void Dispose(bool disposing) {
