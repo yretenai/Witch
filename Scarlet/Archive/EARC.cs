@@ -21,11 +21,13 @@ public class EARC : IDisposable {
     private static readonly byte[] EMEMKey = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
     private static readonly byte[] EARCKey = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
 
+    // EARC stands for "Archive", it's used to store files in a compressed format to reduce the size of the game and disk load times.
+    // EMEM stands for "Memory", it's used to store virtual PACK files to help with the loading of the game (i assume.)
     public unsafe EARC(string path, bool isEMEM = false) {
         using var _perf = new PerformanceCounter<PerformanceHost.EARC>();
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-        if (isEMEM) {
+        if (isEMEM) { // zero idea why this is encrypted, but it is.
             Stream.Seek(-1, SeekOrigin.End);
             var encryption = (EARCEncryption) Stream.ReadByte();
             Debug.Assert(encryption == EARCEncryption.AES, "encryption == EARCEncryption.AES");

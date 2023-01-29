@@ -4,6 +4,7 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
+// EREP stands for "Repair", it's used to validate the integrity of specific files in an EARC.
 public class EREP : IDisposable {
     public EREP(MemoryOwner<byte> erep) {
         Buffer = erep;
