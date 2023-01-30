@@ -1,7 +1,5 @@
 ﻿using DragonLib;
 using Scarlet;
-using Scarlet.Archive;
-using Scarlet.Structures.Archive;
 using Serilog;
 
 namespace Witch;
@@ -24,39 +22,38 @@ internal class Program {
         files.AddRange(earcFiles);
         files.AddRange(ememFiles);
 
-        var target = new DirectoryInfo(args[1]).FullName;
         using var _perf = new PerformanceCounter<Program>();
+
+        Log.Information("Loading {Count} archives", files.Count);
         foreach (var earcFile in files) {
-            using var earc = new EARC(earcFile, earcFile.EndsWith(".emem", StringComparison.OrdinalIgnoreCase));
+            Log.Information("Loading {File}", earcFile);
+            ResourceManager.Instance.LoadEARC(earcFile);
+        }
 
-            foreach (var file in earc.FileEntries) {
-                if ((file.Flags & EARCFileFlags.Reference) != 0) {
-                    continue;
-                }
+        Log.Information("Building file table");
+        ResourceManager.Instance.Build();
 
-                if ((file.Flags & EARCFileFlags.Deleted) != 0) {
-                    continue;
-                }
+        // todo: make this a command
+        Log.Information("Extracting files");
+        var target = new DirectoryInfo(args[1]).FullName;
+        foreach (ResourceManager.FileReference reference in ResourceManager.Instance.IdTable.Values) {
+            var earc = ResourceManager.Instance.Archives[reference.ArchiveIndex];
+            var file = earc.FileEntries[reference.FileIndex];
 
-                if ((file.Flags & EARCFileFlags.Loose) != 0) {
-                    continue;
-                }
-
-                var path = file.GetPath(earc.Buffer);
-                if (path.StartsWith("$archives")) {
-                    path = path[10..];
-                }
-
-                path = path.Trim('/', '\\');
-                var outputPath = Path.Combine(target, path);
-                outputPath.EnsureDirectoryExists();
-
-                Log.Information("Extracting {File}", path);
-
-                using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-                using var input = earc.ReadFile(file);
-                output.Write(input.Span);
+            var path = file.GetPath(earc.Buffer);
+            if (path.StartsWith("$archives")) {
+                path = path[10..];
             }
+
+            path = path.Trim('/', '\\');
+            var outputPath = target + '/' + path;
+            outputPath.EnsureDirectoryExists();
+
+            Log.Information("Extracting {File}", path);
+
+            using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+            using var input = earc.ReadFile(file);
+            output.Write(input.Span);
         }
 
         Log.Information("Done");

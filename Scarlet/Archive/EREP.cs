@@ -4,8 +4,16 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
-// EREP stands for "Repair", it's used to validate the integrity of specific files in an EARC.
-public class EREP : IDisposable {
+// EREP stands for either "Repair" or "Reference Protection".
+// Every ID in an EREP file is an ID used by a reference file (i.e. a file that simply points to another file).
+// In my limited testing modding files that aren't in the EREP file doesn't seem to cause any issues.
+// However, I'm not sure if this is the case for all files.
+public sealed class EREP : IDisposable {
+    public EREP() {
+        Buffer = MemoryOwner<byte>.Empty;
+        BlitRows = BlitStruct<EREPRow>.Empty;
+    }
+
     public EREP(MemoryOwner<byte> erep) {
         Buffer = erep;
         BlitRows = new BlitStruct<EREPRow>(Buffer, 0, (uint) erep.Length >> 4);
@@ -16,21 +24,7 @@ public class EREP : IDisposable {
     public Span<EREPRow> Rows => BlitRows.Span;
 
     public void Dispose() {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    ~EREP() {
-        Dispose(false);
-    }
-
-    protected virtual void ReleaseUnmanagedResources() { }
-
-    protected virtual void Dispose(bool disposing) {
-        ReleaseUnmanagedResources();
-        if (disposing) {
-            Buffer.Dispose();
-            BlitRows.Dispose();
-        }
+        Buffer.Dispose();
+        BlitRows.Dispose();
     }
 }

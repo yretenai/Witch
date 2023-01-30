@@ -12,7 +12,7 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
-public class EARC : IDisposable {
+public sealed class EARC : IDisposable {
     private const uint MagicValue = 0x46415243; // FARC - File Archive
     private const ulong ChecksumXOR1 = 0xCBF29CE484222325;
     private const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
@@ -102,24 +102,10 @@ public class EARC : IDisposable {
     public Span<EARCFile> FileEntries => BlitFileEntries.Span;
 
     public void Dispose() {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    ~EARC() {
-        Dispose(false);
-    }
-
-    protected virtual void ReleaseUnmanagedResources() { }
-
-    protected virtual void Dispose(bool disposing) {
-        ReleaseUnmanagedResources();
-        if (disposing) {
-            Stream.Close();
-            Stream.Dispose();
-            Buffer.Dispose();
-            BlitFileEntries.Dispose();
-        }
+        Stream.Close();
+        Stream.Dispose();
+        Buffer.Dispose();
+        BlitFileEntries.Dispose();
     }
 
     public unsafe MemoryOwner<byte> ReadFile(in EARCFile file) {

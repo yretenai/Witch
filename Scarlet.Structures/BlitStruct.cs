@@ -7,7 +7,7 @@ namespace Scarlet.Structures;
 
 // from LibHac
 public readonly struct BlitStruct<T> : IDisposable where T : unmanaged {
-    public static BlitSpan<T> Empty => default;
+    public static BlitStruct<T> Empty => default;
 
     private readonly MemoryOwner<byte> Buffer;
     private readonly int Offset;

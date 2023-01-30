@@ -10,4 +10,6 @@ public static class PerformanceHost {
 
         public interface Read { }
     }
+
+    public interface ResourceManager { }
 }
