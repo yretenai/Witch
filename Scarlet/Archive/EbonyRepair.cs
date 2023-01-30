@@ -4,24 +4,24 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
-// EREP stands for either "Repair" or "Reference Protection".
+// EREP stands for either "Repair" or "Reference Package/Protection".
 // Every ID in an EREP file is an ID used by a reference file (i.e. a file that simply points to another file).
 // In my limited testing modding files that aren't in the EREP file doesn't seem to cause any issues.
 // However, I'm not sure if this is the case for all files.
-public readonly record struct EREP : IDisposable {
-    public EREP() {
+public readonly record struct EbonyRepair : IDisposable {
+    public EbonyRepair() {
         Buffer = MemoryOwner<byte>.Empty;
-        BlitRows = BlitStruct<EREPRow>.Empty;
+        BlitRows = BlitStruct<EbonyRepairRow>.Empty;
     }
 
-    public EREP(MemoryOwner<byte> erep) {
-        Buffer = erep;
-        BlitRows = new BlitStruct<EREPRow>(Buffer, 0, (uint) erep.Length >> 4);
+    public EbonyRepair(MemoryOwner<byte> data) {
+        Buffer = data;
+        BlitRows = new BlitStruct<EbonyRepairRow>(Buffer, 0, (uint) data.Length >> 4);
     }
 
     public MemoryOwner<byte> Buffer { get; }
-    public BlitStruct<EREPRow> BlitRows { get; }
-    public Span<EREPRow> Rows => BlitRows.Span;
+    public BlitStruct<EbonyRepairRow> BlitRows { get; }
+    public Span<EbonyRepairRow> Rows => BlitRows.Span;
 
     public void Dispose() {
         Buffer.Dispose();

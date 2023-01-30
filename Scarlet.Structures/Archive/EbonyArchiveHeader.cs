@@ -3,7 +3,7 @@
 namespace Scarlet.Structures.Archive;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x40)]
-public record struct EARCHeader {
+public record struct EbonyArchiveHeader {
     public uint Magic;
     public int Version;
     public uint FileCount;
@@ -12,7 +12,7 @@ public record struct EARCHeader {
     public uint DNTOffset;
     public uint FNTOffset;
     public uint DataOffset;
-    public EARCFlags Flags;
+    public EbonyArchiveFlags Flags;
     public uint ChunkSize;
     public ulong Checksum;
 }

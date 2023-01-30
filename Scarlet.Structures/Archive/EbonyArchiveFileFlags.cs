@@ -1,7 +1,7 @@
 ﻿namespace Scarlet.Structures.Archive;
 
 [Flags]
-public enum EARCFileFlags : uint {
+public enum EbonyArchiveFileFlags : uint {
     AutoLoad = 1,
     Compressed = 2,
     Reference = 4,

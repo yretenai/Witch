@@ -10,26 +10,26 @@ namespace Scarlet;
 public sealed class ResourceManager : IDisposable {
     public static ResourceManager Instance { get; } = new();
 
-    public List<EARC> EARC { get; } = new();
-    public List<EREP> EREP { get; } = new();
+    public List<EbonyArchive> Archives { get; } = new();
+    public List<EbonyRepair> Repairs { get; } = new();
     public Hashtable FileTable { get; private set; } = new();
     public Hashtable IdTable { get; private set; } = new();
     public Hashtable UriTable { get; private set; } = new();
     public Hashtable UriLookup { get; private set; } = new();
 
     public void Dispose() {
-        foreach (var archive in EARC) {
+        foreach (var archive in Archives) {
             archive.Dispose();
         }
 
-        foreach (var rep in EREP) {
-            rep.Dispose();
+        foreach (var repair in Repairs) {
+            repair.Dispose();
         }
     }
 
-    public void LoadEARC(string file) {
-        var archive = new EARC(file, file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase));
-        EARC.Add(archive);
+    public void LoadArchive(string file) {
+        var archive = new EbonyArchive(file, file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase));
+        Archives.Add(archive);
     }
 
     public bool TryResolveDataPath(string dataPath, out FileReference reference) {
@@ -45,14 +45,14 @@ public sealed class ResourceManager : IDisposable {
     public void Build() {
         using var _perf = new PerformanceCounter<PerformanceHost.ResourceManager>();
 
-        var count = (int) EARC.Sum(x => x.Header.FileCount);
+        var count = (int) Archives.Sum(x => x.Header.FileCount);
         FileTable = new Hashtable(count);
         IdTable = new Hashtable(count);
         UriTable = new Hashtable(count);
         UriLookup = new Hashtable(count);
 
-        for (var archiveIndex = 0; archiveIndex < EARC.Count; archiveIndex++) {
-            var archive = EARC[archiveIndex];
+        for (var archiveIndex = 0; archiveIndex < Archives.Count; archiveIndex++) {
+            var archive = Archives[archiveIndex];
             for (var fileIndex = 0; fileIndex < archive.FileEntries.Length; fileIndex++) {
                 var file = archive.FileEntries[fileIndex];
                 var dataPath = file.GetDataPath(archive.Buffer);
@@ -60,15 +60,15 @@ public sealed class ResourceManager : IDisposable {
                 UriTable[file.Id] = dataPath;
                 UriLookup[dataPath] = path;
 
-                if ((file.Flags & EARCFileFlags.Reference) != 0) {
+                if ((file.Flags & EbonyArchiveFileFlags.Reference) != 0) {
                     continue;
                 }
 
-                if ((file.Flags & EARCFileFlags.Deleted) != 0) {
+                if ((file.Flags & EbonyArchiveFileFlags.Deleted) != 0) {
                     continue;
                 }
 
-                if ((file.Flags & EARCFileFlags.Loose) != 0) {
+                if ((file.Flags & EbonyArchiveFileFlags.Loose) != 0) {
                     continue;
                 }
 
@@ -78,8 +78,8 @@ public sealed class ResourceManager : IDisposable {
                 IdTable[file.Id] = reference;
 
                 if (dataPath.EndsWith(".erep")) {
-                    if (TryCreate<EREP>(archive, file, out var erep)) {
-                        EREP.Add(erep);
+                    if (TryCreate<EbonyRepair>(archive, file, out var data)) {
+                        Repairs.Add(data);
                     }
                 }
             }
@@ -90,7 +90,7 @@ public sealed class ResourceManager : IDisposable {
 
     public bool TryCreate<T>(in string path, [MaybeNullWhen(false)] out T instance) where T : new() {
         if (FileTable[path] is FileReference reference) {
-            var archive = EARC[reference.EARCIndex];
+            var archive = Archives[reference.ArchiveIndex];
             return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
 
@@ -100,7 +100,7 @@ public sealed class ResourceManager : IDisposable {
 
     public bool TryCreate<T>(in FileId path, [MaybeNullWhen(false)] out T instance) where T : new() {
         if (IdTable[path] is FileReference reference) {
-            var archive = EARC[reference.EARCIndex];
+            var archive = Archives[reference.ArchiveIndex];
             return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
 
@@ -108,7 +108,7 @@ public sealed class ResourceManager : IDisposable {
         return false;
     }
 
-    public static bool TryCreate<T>(EARC earc, in EARCFile file, [MaybeNullWhen(false)] out T instance) where T : new() {
+    public static bool TryCreate<T>(EbonyArchive earc, in EbonyArchiveFile file, [MaybeNullWhen(false)] out T instance) where T : new() {
         var data = earc.Read(file);
         var localInstance = Activator.CreateInstance(typeof(T), data);
 
@@ -127,7 +127,7 @@ public sealed class ResourceManager : IDisposable {
 
     public MemoryOwner<byte>? Read(in string path) {
         if (FileTable[path] is FileReference reference) {
-            var archive = EARC[reference.EARCIndex];
+            var archive = Archives[reference.ArchiveIndex];
             return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
 
@@ -136,17 +136,17 @@ public sealed class ResourceManager : IDisposable {
 
     public MemoryOwner<byte>? Read(in FileId path) {
         if (IdTable[path] is FileReference reference) {
-            var archive = EARC[reference.EARCIndex];
+            var archive = Archives[reference.ArchiveIndex];
             return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
 
         return null;
     }
 
-    public readonly record struct FileReference(int EARCIndex, int FileIndex) {
-        public EARC EARC => Instance.EARC[EARCIndex];
-        public EARCFile File => EARC.FileEntries[FileIndex];
+    public readonly record struct FileReference(int ArchiveIndex, int FileIndex) {
+        public EbonyArchive Archive => Instance.Archives[ArchiveIndex];
+        public EbonyArchiveFile File => Archive.FileEntries[FileIndex];
 
-        public (EARC EARC, EARCFile File) Deconstruct() => (EARC, File);
+        public (EbonyArchive Archive, EbonyArchiveFile File) Deconstruct() => (Archive, File);
     }
 }

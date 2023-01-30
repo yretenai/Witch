@@ -12,28 +12,28 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
-public readonly record struct EARC : IDisposable {
+public readonly record struct EbonyArchive : IDisposable {
     private const uint MagicValue = 0x46415243; // FARC - File Archive
     private const ulong ChecksumXOR1 = 0xCBF29CE484222325;
     private const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
     private const uint SeedExpansion = 0x41C64E6D;
     private const uint SeedOffset = 0x3039;
-    private static readonly byte[] EMEMKey = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
-    private static readonly byte[] EARCKey = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
+    private static readonly byte[] MemoryKey = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
+    private static readonly byte[] ArchiveKey = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
 
     // EARC stands for "Archive", it's used to store files in a compressed format to reduce the size of the game and disk load times.
     // EMEM stands for "Memory", it's used to store virtual PACK files to help with the loading of the game (i assume.)
-    public unsafe EARC(string path, bool isEMEM = false) {
-        using var _perf = new PerformanceCounter<PerformanceHost.EARC>();
+    public unsafe EbonyArchive(string path, bool isMem = false) {
+        using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive>();
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-        if (isEMEM) { // zero idea why this is encrypted, but it is.
+        if (isMem) { // zero idea why this is encrypted, but it is.
             Stream.Seek(-1, SeekOrigin.End);
-            var encryption = (EARCEncryption) Stream.ReadByte();
-            Debug.Assert(encryption == EARCEncryption.AES, "encryption == EARCEncryption.AES");
+            var encryption = (EbonyArchiveEncryption) Stream.ReadByte();
+            Debug.Assert(encryption == EbonyArchiveEncryption.AES, "encryption == EbonyArchiveEncryption.AES");
 
             using var aes = Aes.Create();
-            aes.Key = EMEMKey;
+            aes.Key = MemoryKey;
             var iv = new byte[16];
             Stream.Seek(-33, SeekOrigin.End);
             Stream.ReadExactly(iv);
@@ -49,14 +49,14 @@ public readonly record struct EARC : IDisposable {
             Stream = new MemoryStream(decryptor.TransformFinalBlock(block, 0, block.Length));
         }
 
-        if (Stream.Length < Unsafe.SizeOf<EARCHeader>()) {
+        if (Stream.Length < Unsafe.SizeOf<EbonyArchiveHeader>()) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is too small to be an EARC archive.");
         }
 
-        var header = stackalloc EARCHeader[1];
-        var blitHeader = new BlitSpan<EARCHeader>(ref header[0]);
+        var header = stackalloc EbonyArchiveHeader[1];
+        var blitHeader = new BlitSpan<EbonyArchiveHeader>(ref header[0]);
         Stream.ReadExactly(blitHeader.GetByteSpan(0));
 
         if (header->Magic != MagicValue) {
@@ -68,13 +68,13 @@ public readonly record struct EARC : IDisposable {
         Stream.Position = 0;
         Buffer = MemoryOwner<byte>.Allocate((int) header->DataOffset);
         Stream.ReadExactly(Buffer.Span);
-        BlitFileEntries = new BlitStruct<EARCFile>(Buffer, (int) header->FATOffset, header->FileCount);
+        BlitFileEntries = new BlitStruct<EbonyArchiveFile>(Buffer, (int) header->FATOffset, header->FileCount);
 
         if (header->Version < 0) {
-            using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EARC.Deobfuscate>();
+            using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
             header->Version &= 0x7FFFFFFF;
             var key = header->Checksum ^ ChecksumXOR1;
-            if ((header->Flags & EARCFlags.AdvanceChecksum) != 0) {
+            if ((header->Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
                 key ^= ChecksumXOR2;
             }
 
@@ -83,7 +83,7 @@ public readonly record struct EARC : IDisposable {
             for (var i = 0; i < blitFileEntries.Length; i++) {
                 ref var file = ref blitFileEntries[i];
                 var bytes = MemoryMarshal.Cast<byte, ulong>(blitFileEntries.GetByteSpan(i));
-                if ((file.Flags & EARCFileFlags.SkipObfuscation) == 0) {
+                if ((file.Flags & EbonyArchiveFileFlags.SkipObfuscation) == 0) {
                     (file.Size, file.CompressedSize) = (file.CompressedSize, file.Size);
                     bytes[1] ^= fnv.HashNext(file.Id);
                     bytes[3] ^= fnv.HashNext(~file.Id);
@@ -97,9 +97,9 @@ public readonly record struct EARC : IDisposable {
 
     public Stream Stream { get; }
     public MemoryOwner<byte> Buffer { get; }
-    public EARCHeader Header { get; }
-    private BlitStruct<EARCFile> BlitFileEntries { get; }
-    public Span<EARCFile> FileEntries => BlitFileEntries.Span;
+    public EbonyArchiveHeader Header { get; }
+    private BlitStruct<EbonyArchiveFile> BlitFileEntries { get; }
+    public Span<EbonyArchiveFile> FileEntries => BlitFileEntries.Span;
 
     public void Dispose() {
         Stream.Close();
@@ -108,8 +108,8 @@ public readonly record struct EARC : IDisposable {
         BlitFileEntries.Dispose();
     }
 
-    public unsafe MemoryOwner<byte> Read(in EARCFile file) {
-        using var _perf = new PerformanceCounter<PerformanceHost.EARC.Read>();
+    public unsafe MemoryOwner<byte> Read(in EbonyArchiveFile file) {
+        using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive.Read>();
         Stream.Position = file.DataOffset;
 
         var expandedKey = file.Seed == 0 ? 0ul : ((ulong) file.Seed * SeedExpansion + SeedOffset) * SeedExpansion + SeedOffset;
@@ -117,15 +117,15 @@ public readonly record struct EARC : IDisposable {
 
         MemoryOwner<byte> buffer;
 
-        if ((file.Flags & EARCFileFlags.Encrypted) != 0) {
+        if ((file.Flags & EbonyArchiveFileFlags.Encrypted) != 0) {
             Stream.Position = file.DataOffset + file.CompressedSize - 1;
-            var encryption = (EARCEncryption) Stream.ReadByte();
-            Debug.Assert(encryption == EARCEncryption.AES, "encryption == EARCEncryption.AES");
+            var encryption = (EbonyArchiveEncryption) Stream.ReadByte();
+            Debug.Assert(encryption == EbonyArchiveEncryption.AES, "encryption == EbonyArchiveEncryption.AES");
 
             Stream.Position = file.DataOffset + file.CompressedSize - 33;
 
             using var aes = Aes.Create();
-            aes.Key = EARCKey;
+            aes.Key = ArchiveKey;
 
             var iv = new byte[16];
             var iv64 = MemoryMarshal.Cast<byte, ulong>(iv);
@@ -159,33 +159,33 @@ public readonly record struct EARC : IDisposable {
             }
         }
 
-        if (file.Seed != 0 && (file.Flags & EARCFileFlags.Encrypted) != 0) {
+        if (file.Seed != 0 && (file.Flags & EbonyArchiveFileFlags.Encrypted) != 0) {
             var u64 = MemoryMarshal.Cast<byte, ulong>(buffer.Span);
             u64[0] ^= expandedKey;
         }
 
         _perf.Stop();
 
-        if ((file.Flags & EARCFileFlags.Compressed) == 0) {
+        if ((file.Flags & EbonyArchiveFileFlags.Compressed) == 0) {
             return buffer;
         }
 
         try {
-            using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EARC.Decompress>();
+            using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EbonyArchive.Decompress>();
             var flags = file.Flags;
-            if ((flags & EARCFileFlags.HasCompressType) == 0) {
-                flags &= EARCFileFlags.HasCompressType;
-                flags &= (EARCFileFlags) ((uint) EARCCompressionType.Zlib << 29);
+            if ((flags & EbonyArchiveFileFlags.HasCompressType) == 0) {
+                flags &= EbonyArchiveFileFlags.HasCompressType;
+                flags &= (EbonyArchiveFileFlags) ((uint) EbonyArchiveCompressionType.Zlib << 29);
             } else {
-                Debug.Assert((EARCCompressionType) ((uint) flags >> 7) != EARCCompressionType.Zlib, "Zlib compression is an assumption.");
+                Debug.Assert((EbonyArchiveCompressionType) ((uint) flags >> 7) != EbonyArchiveCompressionType.Zlib, "Zlib compression is an assumption.");
             }
 
             var decompressed = MemoryOwner<byte>.Allocate(file.Size);
             using var inputPin = buffer.Memory.Pin();
             using var input = new UnmanagedMemoryStream((byte*) inputPin.Pointer, buffer.Length);
 
-            switch ((EARCCompressionType) ((uint) flags >> 29)) {
-                case EARCCompressionType.Zlib: {
+            switch ((EbonyArchiveCompressionType) ((uint) flags >> 29)) {
+                case EbonyArchiveCompressionType.Zlib: {
                     input.Position = 2; // skip zlib header
 
                     try {
@@ -198,7 +198,7 @@ public readonly record struct EARC : IDisposable {
 
                     break;
                 }
-                case EARCCompressionType.LZ4Stream: {
+                case EbonyArchiveCompressionType.LZ4Stream: {
                     try {
                         using var lz = LZ4Stream.Decode(input);
                         lz.ReadExactly(decompressed.Span);

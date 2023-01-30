@@ -27,7 +27,7 @@ internal class Program {
         Log.Information("Loading {Count} archives", files.Count);
         foreach (var earcFile in files) {
             Log.Information("Loading {File}", earcFile);
-            ResourceManager.Instance.LoadEARC(earcFile);
+            ResourceManager.Instance.LoadArchive(earcFile);
         }
 
         Log.Information("Building file table");
@@ -37,9 +37,9 @@ internal class Program {
         Log.Information("Extracting files");
         var target = new DirectoryInfo(args[1]).FullName;
         foreach (ResourceManager.FileReference reference in ResourceManager.Instance.IdTable.Values) {
-            var (earc, file) = reference.Deconstruct();
+            var (archive, file) = reference.Deconstruct();
 
-            var path = file.GetPath(earc.Buffer);
+            var path = file.GetPath(archive.Buffer);
             if (path.StartsWith("$archives")) {
                 path = path[10..];
             }
@@ -51,7 +51,7 @@ internal class Program {
             Log.Information("Extracting {File}", path);
 
             using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-            using var input = earc.Read(file);
+            using var input = archive.Read(file);
             output.Write(input.Span);
         }
 

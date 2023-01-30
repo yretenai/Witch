@@ -1,7 +1,7 @@
 ﻿namespace Scarlet.Structures.Archive;
 
 [Flags]
-public enum EARCFlags : uint {
+public enum EbonyArchiveFlags : uint {
     Loose = 1,
     Localized = 2,
     Debug = 4,

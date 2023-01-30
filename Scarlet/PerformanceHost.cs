@@ -1,7 +1,7 @@
 ﻿namespace Scarlet;
 
 public static class PerformanceHost {
-    public interface EARC {
+    public interface EbonyArchive {
         public interface Decrypt { }
 
         public interface Decompress { }
