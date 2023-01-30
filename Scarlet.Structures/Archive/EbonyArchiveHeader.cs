@@ -5,7 +5,8 @@ namespace Scarlet.Structures.Archive;
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x40)]
 public record struct EbonyArchiveHeader {
     public uint Magic;
-    public int Version;
+    public short VersionMajor;
+    public short VersionMinor;
     public uint FileCount;
     public uint BlockSize;
     public uint FATOffset;

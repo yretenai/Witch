@@ -70,9 +70,9 @@ public readonly record struct EbonyArchive : IDisposable {
         Stream.ReadExactly(Buffer.Span);
         BlitFileEntries = new BlitStruct<EbonyArchiveFile>(Buffer, (int) header->FATOffset, header->FileCount);
 
-        if (header->Version < 0) {
+        if (header->VersionMinor < 0) {
             using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
-            header->Version &= 0x7FFFFFFF;
+            header->VersionMinor &= 0x7FFF;
             var key = header->Checksum ^ ChecksumXOR1;
             if ((header->Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
                 key ^= ChecksumXOR2;
