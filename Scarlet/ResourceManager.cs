@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
 using Scarlet.Structures;
@@ -10,7 +11,7 @@ public sealed class ResourceManager : IDisposable {
     public static ResourceManager Instance { get; } = new();
 
     public List<EARC> EARC { get; } = new();
-    public EREP? EREP { get; private set; }
+    public List<EREP> EREP { get; } = new();
     public Hashtable FileTable { get; private set; } = new();
     public Hashtable IdTable { get; private set; } = new();
     public Hashtable UriTable { get; private set; } = new();
@@ -21,7 +22,9 @@ public sealed class ResourceManager : IDisposable {
             archive.Dispose();
         }
 
-        EREP?.Dispose();
+        foreach (var rep in EREP) {
+            rep.Dispose();
+        }
     }
 
     public void LoadEARC(string file) {
@@ -75,7 +78,9 @@ public sealed class ResourceManager : IDisposable {
                 IdTable[file.Id] = reference;
 
                 if (dataPath.EndsWith(".erep")) {
-                    EREP = ReadFile<EREP>(archive, file);
+                    if (TryCreate<EREP>(archive, file, out var erep)) {
+                        EREP.Add(erep);
+                    }
                 }
             }
         }
@@ -83,48 +88,56 @@ public sealed class ResourceManager : IDisposable {
         FileId.IdTable = UriTable;
     }
 
-    public T? ReadFile<T>(in string path) where T : class, new() {
+    public bool TryCreate<T>(in string path, [MaybeNullWhen(false)] out T instance) where T : new() {
         if (FileTable[path] is FileReference reference) {
             var archive = EARC[reference.EARCIndex];
-            return ReadFile<T>(archive, archive.FileEntries[reference.FileIndex]);
+            return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
 
-        return null;
+        instance = default;
+        return false;
     }
 
-    public T? ReadFile<T>(in FileId path) where T : class, new() {
+    public bool TryCreate<T>(in FileId path, [MaybeNullWhen(false)] out T instance) where T : new() {
         if (IdTable[path] is FileReference reference) {
             var archive = EARC[reference.EARCIndex];
-            return ReadFile<T>(archive, archive.FileEntries[reference.FileIndex]);
+            return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
 
-        return null;
+        instance = default;
+        return false;
     }
 
-    public static T? ReadFile<T>(EARC earc, in EARCFile file) where T : class, new() {
-        var data = earc.ReadFile(file);
-        var instance = Activator.CreateInstance(typeof(T), data) as T;
-        if (instance is not IDisposable) {
+    public static bool TryCreate<T>(EARC earc, in EARCFile file, [MaybeNullWhen(false)] out T instance) where T : new() {
+        var data = earc.Read(file);
+        var localInstance = Activator.CreateInstance(typeof(T), data);
+
+        if (localInstance is not IDisposable) {
             data.Dispose();
         }
 
-        return instance;
+        if(localInstance is T result) {
+            instance = result;
+            return true;
+        }
+
+        instance = default;
+        return false;
     }
 
-
-    public MemoryOwner<byte>? ReadFile(in string path) {
+    public MemoryOwner<byte>? Read(in string path) {
         if (FileTable[path] is FileReference reference) {
             var archive = EARC[reference.EARCIndex];
-            return archive.ReadFile(archive.FileEntries[reference.FileIndex]);
+            return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
 
         return null;
     }
 
-    public MemoryOwner<byte>? ReadFile(in FileId path) {
+    public MemoryOwner<byte>? Read(in FileId path) {
         if (IdTable[path] is FileReference reference) {
             var archive = EARC[reference.EARCIndex];
-            return archive.ReadFile(archive.FileEntries[reference.FileIndex]);
+            return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
 
         return null;

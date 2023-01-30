@@ -12,7 +12,7 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
-public sealed class EARC : IDisposable {
+public readonly record struct EARC : IDisposable {
     private const uint MagicValue = 0x46415243; // FARC - File Archive
     private const ulong ChecksumXOR1 = 0xCBF29CE484222325;
     private const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
@@ -108,7 +108,7 @@ public sealed class EARC : IDisposable {
         BlitFileEntries.Dispose();
     }
 
-    public unsafe MemoryOwner<byte> ReadFile(in EARCFile file) {
+    public unsafe MemoryOwner<byte> Read(in EARCFile file) {
         using var _perf = new PerformanceCounter<PerformanceHost.EARC.Read>();
         Stream.Position = file.DataOffset;
 

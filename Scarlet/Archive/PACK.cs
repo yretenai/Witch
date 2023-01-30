@@ -4,7 +4,7 @@ using Scarlet.Structures;
 namespace Scarlet.Archive;
 
 // PACK seems like it is a dependency graph for EARC files, but I don't know what it does for certain.
-public sealed class PACK : IDisposable {
+public readonly record struct PACK : IDisposable {
     public PACK() {
         Buffer = MemoryOwner<byte>.Empty;
         BlitRows = BlitStruct<byte>.Empty;

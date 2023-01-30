@@ -51,7 +51,7 @@ internal class Program {
             Log.Information("Extracting {File}", path);
 
             using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-            using var input = earc.ReadFile(file);
+            using var input = earc.Read(file);
             output.Write(input.Span);
         }
 

@@ -8,7 +8,7 @@ namespace Scarlet.Archive;
 // Every ID in an EREP file is an ID used by a reference file (i.e. a file that simply points to another file).
 // In my limited testing modding files that aren't in the EREP file doesn't seem to cause any issues.
 // However, I'm not sure if this is the case for all files.
-public sealed class EREP : IDisposable {
+public readonly record struct EREP : IDisposable {
     public EREP() {
         Buffer = MemoryOwner<byte>.Empty;
         BlitRows = BlitStruct<EREPRow>.Empty;
