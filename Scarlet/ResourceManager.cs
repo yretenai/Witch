@@ -12,10 +12,10 @@ public sealed class ResourceManager : IDisposable {
 
     public List<EbonyArchive> Archives { get; } = new();
     public List<EbonyRepair> Repairs { get; } = new();
-    public Hashtable FileTable { get; private set; } = new();
-    public Hashtable IdTable { get; private set; } = new();
-    public Hashtable UriTable { get; private set; } = new();
-    public Hashtable UriLookup { get; private set; } = new();
+    public Dictionary<string, FileReference> FileTable { get; private set; } = new();
+    public Dictionary<FileId, FileReference>  IdTable { get; private set; } = new();
+    public Dictionary<FileId, string>  UriTable { get; private set; } = new();
+    public Dictionary<string, string>  UriLookup { get; private set; } = new();
 
     public void Dispose() {
         foreach (var archive in Archives) {
@@ -46,10 +46,10 @@ public sealed class ResourceManager : IDisposable {
         using var _perf = new PerformanceCounter<PerformanceHost.ResourceManager>();
 
         var count = (int) Archives.Sum(x => x.Header.FileCount);
-        FileTable = new Hashtable(count);
-        IdTable = new Hashtable(count);
-        UriTable = new Hashtable(count);
-        UriLookup = new Hashtable(count);
+        FileTable.EnsureCapacity(count);
+        IdTable.EnsureCapacity(count);
+        UriTable.EnsureCapacity(count);
+        UriLookup.EnsureCapacity(count);
 
         for (var archiveIndex = 0; archiveIndex < Archives.Count; archiveIndex++) {
             var archive = Archives[archiveIndex];

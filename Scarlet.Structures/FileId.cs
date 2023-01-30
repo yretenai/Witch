@@ -36,8 +36,8 @@ public readonly record struct FileId {
 
     public static implicit operator FileId(ulong value) => new() { Value = value };
     public static implicit operator ulong(FileId id) => id.Value;
-    public static Hashtable IdTable { get; set; } = new();
-    public override string ToString() => IdTable[this] as string ?? Value.ToString("X16");
+    public static Dictionary<FileId, string> IdTable { get; set; } = new();
+    public override string ToString() => IdTable.TryGetValue(this, out var result) ? result : Value.ToString("X16");
     public bool Equals(FileId? other) => other?.Value == Value;
     public override int GetHashCode() => Value.GetHashCode();
 }
