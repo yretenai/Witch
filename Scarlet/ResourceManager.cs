@@ -6,9 +6,7 @@ using Scarlet.Structures.Archive;
 
 namespace Scarlet;
 
-public class ResourceManager : IDisposable {
-    public readonly record struct FileReference(int ArchiveIndex, int FileIndex);
-
+public sealed class ResourceManager : IDisposable {
     public static ResourceManager Instance { get; } = new();
 
     public List<EARC> Archives { get; } = new();
@@ -16,6 +14,14 @@ public class ResourceManager : IDisposable {
     public Hashtable FileTable { get; private set; } = new();
     public Hashtable IdTable { get; private set; } = new();
     public Hashtable UriTable { get; private set; } = new();
+
+    public void Dispose() {
+        foreach (var archive in Archives) {
+            archive.Dispose();
+        }
+
+        Repair?.Dispose();
+    }
 
     public void LoadEARC(string file) {
         var archive = new EARC(file, file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase));
@@ -110,29 +116,5 @@ public class ResourceManager : IDisposable {
         return null;
     }
 
-    protected void ReleaseUnmanagedResources() { }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        ReleaseUnmanagedResources();
-        if (disposing)
-        {
-            foreach (var archive in Archives) {
-                archive.Dispose();
-            }
-
-            Repair?.Dispose();
-        }
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    ~ResourceManager()
-    {
-        Dispose(false);
-    }
+    public readonly record struct FileReference(int ArchiveIndex, int FileIndex);
 }
