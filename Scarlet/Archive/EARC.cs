@@ -145,7 +145,7 @@ public readonly record struct EARC : IDisposable {
                 var decrypted = decryptor.TransformFinalBlock(array.Array!, array.Offset, array.Count).AsSpan();
                 decrypted.CopyTo(buffer.Span);
             } catch {
-                Buffer.Dispose();
+                buffer.Dispose();
                 throw;
             }
         } else {
@@ -154,7 +154,7 @@ public readonly record struct EARC : IDisposable {
             try {
                 Stream.ReadExactly(buffer.Span);
             } catch {
-                Buffer.Dispose();
+                buffer.Dispose();
                 throw;
             }
         }
