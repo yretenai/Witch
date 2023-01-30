@@ -37,8 +37,7 @@ internal class Program {
         Log.Information("Extracting files");
         var target = new DirectoryInfo(args[1]).FullName;
         foreach (ResourceManager.FileReference reference in ResourceManager.Instance.IdTable.Values) {
-            var earc = ResourceManager.Instance.Archives[reference.ArchiveIndex];
-            var file = earc.FileEntries[reference.FileIndex];
+            var (earc, file) = reference.Deconstruct();
 
             var path = file.GetPath(earc.Buffer);
             if (path.StartsWith("$archives")) {
