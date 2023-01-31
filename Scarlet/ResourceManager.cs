@@ -10,19 +10,19 @@ public sealed class ResourceManager : IDisposable {
     public static ResourceManager Instance { get; } = new();
 
     public List<EbonyArchive> Archives { get; } = new();
-    public List<EbonyRepair> Repairs { get; } = new();
-    public Dictionary<string, FileReference> FileTable { get; private set; } = new();
-    public Dictionary<FileId, FileReference>  IdTable { get; private set; } = new();
-    public Dictionary<FileId, string>  UriTable { get; private set; } = new();
-    public Dictionary<string, string>  UriLookup { get; private set; } = new();
+    public List<EbonyReplace> Replacements { get; } = new();
+    public Dictionary<string, FileReference> FileTable { get; } = new();
+    public Dictionary<FileId, FileReference>  IdTable { get; } = new();
+    public Dictionary<FileId, string>  UriTable { get; } = new();
+    public Dictionary<string, string>  UriLookup { get; } = new();
 
     public void Dispose() {
         foreach (var archive in Archives) {
             archive.Dispose();
         }
 
-        foreach (var repair in Repairs) {
-            repair.Dispose();
+        foreach (var replace in Replacements) {
+            replace.Dispose();
         }
     }
 
@@ -77,8 +77,8 @@ public sealed class ResourceManager : IDisposable {
                 IdTable[file.Id] = reference;
 
                 if (dataPath.EndsWith(".erep")) {
-                    if (TryCreate<EbonyRepair>(archive, file, out var data)) {
-                        Repairs.Add(data);
+                    if (TryCreate<EbonyReplace>(archive, file, out var data)) {
+                        Replacements.Add(data);
                     }
                 }
             }
