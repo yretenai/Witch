@@ -31,7 +31,7 @@ public readonly record struct FileId {
         fnv.Reset(0x14650FB0739D0383);
         var typeHash = fnv.ComputeHashValue(Encoding.UTF8.GetBytes(ext));
 
-        Value = typeHash << 44 | (pathHash & 0xFFFFFFFFFFF);
+        Value = typeHash << 40 | (pathHash & 0xFFFFFFFFFFF);
     }
 
     public static implicit operator FileId(ulong value) => new() { Value = value };

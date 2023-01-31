@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
 using Scarlet.Structures;
@@ -33,13 +32,13 @@ public sealed class ResourceManager : IDisposable {
     }
 
     public bool TryResolveDataPath(string dataPath, out FileReference reference) {
-        if (UriLookup[dataPath] is not string path) {
-            reference = default;
-            return false;
+        if (UriLookup.TryGetValue(dataPath, out var path)) {
+            reference = FileTable[path];
+            return true;
         }
 
-        reference = (FileReference) FileTable[path]!;
-        return true;
+        reference = default;
+        return false;
     }
 
     public void Build() {
@@ -89,7 +88,7 @@ public sealed class ResourceManager : IDisposable {
     }
 
     public bool TryCreate<T>(in string path, [MaybeNullWhen(false)] out T instance) where T : new() {
-        if (FileTable[path] is FileReference reference) {
+        if (FileTable.TryGetValue(path, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
             return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
@@ -99,7 +98,7 @@ public sealed class ResourceManager : IDisposable {
     }
 
     public bool TryCreate<T>(in FileId path, [MaybeNullWhen(false)] out T instance) where T : new() {
-        if (IdTable[path] is FileReference reference) {
+        if (IdTable.TryGetValue(path, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
             return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
@@ -126,7 +125,7 @@ public sealed class ResourceManager : IDisposable {
     }
 
     public MemoryOwner<byte>? Read(in string path) {
-        if (FileTable[path] is FileReference reference) {
+        if (FileTable.TryGetValue(path, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
             return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
@@ -135,7 +134,7 @@ public sealed class ResourceManager : IDisposable {
     }
 
     public MemoryOwner<byte>? Read(in FileId path) {
-        if (IdTable[path] is FileReference reference) {
+        if (IdTable.TryGetValue(path, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
             return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
