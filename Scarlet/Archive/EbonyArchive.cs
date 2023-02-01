@@ -4,12 +4,12 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using CommunityToolkit.HighPerformance.Buffers;
+using DragonLib;
 using DragonLib.Hash;
 using DragonLib.Hash.Basis;
 using K4os.Compression.LZ4.Streams;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
-using Serilog;
 
 namespace Scarlet.Archive;
 
@@ -27,8 +27,6 @@ public readonly record struct EbonyArchive : IDisposable {
     public unsafe EbonyArchive(string path, bool isMem = false) {
         using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive>();
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-        var checksum = Stream.Length < 0x8000000 ? CalculateHash(Stream) : 0;
 
         if (isMem) { // zero idea why this is encrypted, but it is.
             Stream.Seek(-1, SeekOrigin.End);
@@ -68,10 +66,6 @@ public readonly record struct EbonyArchive : IDisposable {
             throw new InvalidDataException("File is not an EARC archive.");
         }
 
-        if (checksum != 0 && header->Checksum != checksum) {
-            Log.Warning("Checksum mismatch! Expected {Checksum:X16} got {Result:X16}!", header->Checksum, checksum);
-        }
-
         Stream.Position = 0;
         Buffer = MemoryOwner<byte>.Allocate((int) header->DataOffset);
         Stream.ReadExactly(Buffer.Span);
@@ -102,70 +96,6 @@ public readonly record struct EbonyArchive : IDisposable {
         Header = header[0];
     }
 
-    public static ulong CalculateHashXV(Stream stream) {
-        var position = stream.Position;
-
-        stream.Position = 0;
-
-        using var buffer = MemoryOwner<byte>.Allocate(0x40);
-        try {
-            stream.ReadExactly(buffer.Span);
-            return CalculateHashXV(buffer);
-        } finally {
-            stream.Position = position;
-        }
-    }
-
-    public static ulong CalculateHashXV(MemoryOwner<byte> buffer) {
-        var buffer64 = MemoryMarshal.Cast<byte, ulong>(buffer.Span);
-        buffer64[5] = 0;
-        var sha = MemoryMarshal.Cast<byte, ulong>(SHA256.HashData(buffer.Span).AsSpan());
-        return sha[0] ^ sha[1] ^ sha[3];
-    }
-
-
-    public static ulong CalculateHash(Stream stream) {
-        var position = stream.Position;
-
-        stream.Position = 0x40;
-
-        var size = (int) Math.Min(stream.Length - 0x40, 0x8000000);
-        using var buffer = MemoryOwner<byte>.Allocate(size + 0x10);
-        try {
-            stream.ReadExactly(buffer.Span[..size]);
-            return CalculateHash(buffer, size);
-        } finally {
-            stream.Position = position;
-        }
-    }
-
-    public static ulong CalculateHash(MemoryOwner<byte> buffer, int size) {
-        // todo: this is broken.
-
-        var blocks = (buffer.Length >> 4) - 1;
-        var hashSeed = MemoryMarshal.Cast<byte, uint>(buffer.Span[(blocks << 3)..])[..4];
-        if (blocks > 8) {
-            // i suspect the issue is with this
-            var seed = (ulong) size ^ 0x7575757575757575UL;
-            for (var i = 0; i < 4; ++i) {
-                seed ^= seed << 13;
-                seed ^= seed >> 7;
-                seed ^= seed << 17;
-                hashSeed[i] = (uint) seed;
-            }
-        } else {
-            hashSeed[0] = 0xb16949df;
-            hashSeed[1] = 0x104098f5;
-            hashSeed[2] = 0x9eb9b68b;
-            hashSeed[3] = 0x3120f7cb;
-        }
-
-        var sha = MemoryMarshal.Cast<byte, uint>(SHA256.HashData(buffer.Span).AsSpan());
-
-        // or this
-        return ((ulong) sha[7] << 0x20 | sha[6]) ^ ((ulong) sha[5] << 0x20 | sha[4]) ^ ((ulong) sha[3] << 0x20 | sha[2]) ^ ((ulong) sha[1] << 0x20 | sha[0]);
-    }
-
     public Stream Stream { get; }
     public MemoryOwner<byte> Buffer { get; }
     public EbonyArchiveHeader Header { get; }
@@ -177,6 +107,75 @@ public readonly record struct EbonyArchive : IDisposable {
         Stream.Dispose();
         Buffer.Dispose();
         BlitFileEntries.Dispose();
+    }
+
+    public static ulong CalculateHashXV(Stream stream) {
+        var position = stream.Position;
+
+        stream.Position = 0;
+
+        try {
+            using var buffer = MemoryOwner<byte>.Allocate(0x40);
+            stream.ReadExactly(buffer.Span);
+            var buffer64 = MemoryMarshal.Cast<byte, ulong>(buffer.Span);
+            buffer64[5] = 0;
+            var sha = MemoryMarshal.Cast<byte, ulong>(SHA256.HashData(buffer.Span).AsSpan());
+            return sha[0] ^ sha[1] ^ sha[3];
+        } finally {
+            stream.Position = position;
+        }
+    }
+
+    public static ulong CalculateHash(Stream stream) {
+        const uint MAX_SIZE = 0x8000000;
+        const int CHUNK_SIZE = 0x800000;
+        const ulong XOR_CONST = 0x7575757575757575UL;
+        const uint STATIC_SEED0 = 0xb16949df;
+        const uint STATIC_SEED1 = 0x104098f5;
+        const uint STATIC_SEED2 = 0x9eb9b68b;
+        const uint STATIC_SEED3 = 0x3120f7cb;
+
+        var position = stream.Position;
+
+        stream.Position = 0x40;
+
+        try {
+            var size = (int) Math.Min(stream.Length - 0x40, MAX_SIZE);
+            using var chunk = MemoryOwner<byte>.Allocate(CHUNK_SIZE);
+
+            // var blocks = (buffer.Length >> 4) - 1;
+            var blocks = size.Align(CHUNK_SIZE) >> 23;
+            using var hashList = MemoryOwner<byte>.Allocate((blocks + 1) << 4);
+            for (var i = 0; i < blocks; ++i) {
+                var offset = i << 23;
+                var length = Math.Min(size - offset, CHUNK_SIZE);
+                stream.ReadExactly(chunk.Span[..length]);
+                // some 128-bit mystery hash.
+                // Hash(chunk, hashList.Slice(i << 4));
+            }
+
+            var hashSeed = MemoryMarshal.Cast<byte, uint>(hashList.Span[^16..]);
+            if (blocks > 8) {
+                var seed = (ulong) size ^ XOR_CONST;
+                for (var i = 0; i < 4; ++i) {
+                    seed ^= seed << 13;
+                    seed ^= seed >> 7;
+                    seed ^= seed << 17;
+                    hashSeed[i] = (uint) seed;
+                }
+            } else {
+                hashSeed[0] = STATIC_SEED0;
+                hashSeed[1] = STATIC_SEED1;
+                hashSeed[2] = STATIC_SEED2;
+                hashSeed[3] = STATIC_SEED3;
+            }
+
+            var sha = MemoryMarshal.Cast<byte, uint>(SHA256.HashData(hashList.Span).AsSpan());
+
+            return (((ulong) sha[7] << 0x20) | sha[6]) ^ (((ulong) sha[5] << 0x20) | sha[4]) ^ (((ulong) sha[3] << 0x20) | sha[2]) ^ (((ulong) sha[1] << 0x20) | sha[0]);
+        } finally {
+            stream.Position = position;
+        }
     }
 
     public unsafe MemoryOwner<byte> Read(in EbonyArchiveFile file) {
