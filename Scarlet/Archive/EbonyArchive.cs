@@ -137,17 +137,19 @@ public readonly record struct EbonyArchive : IDisposable {
 
         var position = stream.Position;
 
-        stream.Position = 0x40;
+        stream.Position = Unsafe.SizeOf<EbonyArchiveHeader>();
 
         try {
-            var size = (int) Math.Min(stream.Length - 0x40, MAX_SIZE);
+            var size = (int) Math.Min(stream.Length - stream.Position, MAX_SIZE);
             using var chunk = MemoryOwner<byte>.Allocate(CHUNK_SIZE);
 
             // var blocks = (buffer.Length >> 4) - 1;
-            var blocks = size.Align(CHUNK_SIZE) >> 23;
-            using var hashList = MemoryOwner<byte>.Allocate((blocks + 1) << 4);
+
+            // hash up to MAX_SIZE (128 MiB) of data in CHUNK_SIZE (8MiB) chunks and hash them into a 128-bit hash array.
+            var blocks = size.Align(CHUNK_SIZE) >> 23; // 0x800000 -> 0x1
+            using var hashList = MemoryOwner<byte>.Allocate((blocks + 1) << 4); // 1 -> 16
             for (var i = 0; i < blocks; ++i) {
-                var offset = i << 23;
+                var offset = i << 23; // 1 -> 0x800000
                 var length = Math.Min(size - offset, CHUNK_SIZE);
                 stream.ReadExactly(chunk.Span[..length]);
                 // some 128-bit mystery hash.
@@ -157,6 +159,7 @@ public readonly record struct EbonyArchive : IDisposable {
             var hashSeed = MemoryMarshal.Cast<byte, uint>(hashList.Span[^16..]);
             if (blocks > 8) {
                 var seed = (ulong) size ^ XOR_CONST;
+                // xorshift64.
                 for (var i = 0; i < 4; ++i) {
                     seed ^= seed << 13;
                     seed ^= seed >> 7;
@@ -164,15 +167,18 @@ public readonly record struct EbonyArchive : IDisposable {
                     hashSeed[i] = (uint) seed;
                 }
             } else {
+                // some magic numbers fished up from leviathan's egg pond or someth
                 hashSeed[0] = STATIC_SEED0;
                 hashSeed[1] = STATIC_SEED1;
                 hashSeed[2] = STATIC_SEED2;
                 hashSeed[3] = STATIC_SEED3;
             }
 
-            var sha = MemoryMarshal.Cast<byte, uint>(SHA256.HashData(hashList.Span).AsSpan());
-
-            return (((ulong) sha[7] << 0x20) | sha[6]) ^ (((ulong) sha[5] << 0x20) | sha[4]) ^ (((ulong) sha[3] << 0x20) | sha[2]) ^ (((ulong) sha[1] << 0x20) | sha[0]);
+            // SHA256 the hash list and overlay the 256-bit hash into 64-bits.
+            // one might wonder, why would you not just use Murmur64 or xxHash64 as it's faster
+            // since we only care about data integrity, we don't need the security benefits of SHA
+            var sha = MemoryMarshal.Cast<byte, ulong>(SHA256.HashData(hashList.Span).AsSpan());
+            return sha[0] ^ sha[1] ^ sha[2] ^ sha[3];
         } finally {
             stream.Position = position;
         }
