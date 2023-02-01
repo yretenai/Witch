@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using CommunityToolkit.HighPerformance.Buffers;
@@ -10,6 +9,7 @@ using DragonLib.Hash.Basis;
 using K4os.Compression.LZ4.Streams;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
+using Serilog;
 
 namespace Scarlet.Archive;
 
@@ -50,32 +50,31 @@ public readonly record struct EbonyArchive : IDisposable {
             Stream = new MemoryStream(decryptor.TransformFinalBlock(block, 0, block.Length));
         }
 
-        if (Stream.Length < Unsafe.SizeOf<EbonyArchiveHeader>()) {
+        if (Stream.Length < EbonyArchiveHeader.Size) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is too small to be an EARC archive.");
         }
 
-        var header = stackalloc EbonyArchiveHeader[1];
-        var blitHeader = new BlitSpan<EbonyArchiveHeader>(ref header[0]);
-        Stream.ReadExactly(blitHeader.GetByteSpan(0));
+        Span<EbonyArchiveHeader> header = stackalloc EbonyArchiveHeader[1];
+        Stream.ReadExactly(header.AsBytes());
 
-        if (header->Magic != MagicValue) {
+        if (header[0].Magic != MagicValue) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is not an EARC archive.");
         }
 
         Stream.Position = 0;
-        Buffer = MemoryOwner<byte>.Allocate((int) header->DataOffset);
+        Buffer = MemoryOwner<byte>.Allocate((int) header[0].DataOffset);
         Stream.ReadExactly(Buffer.Span);
-        BlitFileEntries = new BlitStruct<EbonyArchiveFile>(Buffer, (int) header->FATOffset, header->FileCount);
+        BlitFileEntries = new BlitStruct<EbonyArchiveFile>(Buffer, (int) header[0].FATOffset, header[0].FileCount);
 
-        if (header->VersionMinor < 0) {
+        if (header[0].VersionMinor < 0) {
             using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
-            header->VersionMinor &= 0x7FFF;
-            var key = header->Checksum ^ ChecksumXOR1;
-            if ((header->Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
+            header[0].VersionMinor &= 0x7FFF;
+            var key = header[0].Checksum ^ ChecksumXOR1;
+            if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
                 key ^= ChecksumXOR2;
             }
 
@@ -94,6 +93,16 @@ public readonly record struct EbonyArchive : IDisposable {
         }
 
         Header = header[0];
+
+        var size = FileEntries[^1].DataOffset + FileEntries[^1].CompressedSize;
+        var checksum = CalculateHash(Stream, size);
+        if (checksum == 0) {
+            Log.Warning("EARC Checksum Validation Skipped! No sane person should hash a large file!");
+        }else if (checksum != Header.Checksum) {
+            Log.Error("EARC Checksum validation failed! Header = {Checksum:X16} Witch = {OurChecksum:X16}", Header.Checksum, checksum);
+        } else {
+            Log.Information("EARC Checksum verified! Header = {Checksum:X16} Witch = {OurChecksum:X16}",  Header.Checksum, checksum);
+        }
     }
 
     public Stream Stream { get; }
@@ -109,7 +118,11 @@ public readonly record struct EbonyArchive : IDisposable {
         BlitFileEntries.Dispose();
     }
 
-    public static ulong CalculateHashXV(Stream stream) {
+    public static ulong CalculateHashXV(Stream stream, long dataSize) {
+        if (dataSize < EbonyArchiveHeader.Size) {
+            return 0;
+        }
+
         var position = stream.Position;
 
         stream.Position = 0;
@@ -126,9 +139,12 @@ public readonly record struct EbonyArchive : IDisposable {
         }
     }
 
-    public static ulong CalculateHash(Stream stream) {
-        const uint MAX_SIZE = 0x8000000;
-        const int CHUNK_SIZE = 0x800000;
+    public static ulong CalculateHash(Stream stream, long dataSize, bool force = false) {
+        if (dataSize > int.MaxValue && !force) {
+            return 0;
+        }
+
+        const uint CHUNK_SIZE = 0x8000000;
         const ulong XOR_CONST = 0x7575757575757575UL;
         const uint STATIC_SEED0 = 0xb16949df;
         const uint STATIC_SEED1 = 0x104098f5;
@@ -137,23 +153,23 @@ public readonly record struct EbonyArchive : IDisposable {
 
         var position = stream.Position;
 
-        stream.Position = Unsafe.SizeOf<EbonyArchiveHeader>();
+        stream.Position = EbonyArchiveHeader.Size;
 
         try {
-            var size = (int) Math.Min(stream.Length - stream.Position, MAX_SIZE);
-            using var chunk = MemoryOwner<byte>.Allocate(CHUNK_SIZE);
+            var size = dataSize - EbonyArchiveHeader.Size;
 
             // var blocks = (buffer.Length >> 4) - 1;
 
             // hash up to MAX_SIZE (128 MiB) of data in CHUNK_SIZE (8MiB) chunks and hash them into a 128-bit hash array.
-            var blocks = size.Align(CHUNK_SIZE) >> 23; // 0x800000 -> 0x1
+            var blocks = (int) (size.Align(CHUNK_SIZE) >> 27); // 0x8000000 -> 0x1
+
+            using var chunk = MemoryOwner<byte>.Allocate((int)CHUNK_SIZE);
             using var hashList = MemoryOwner<byte>.Allocate((blocks + 1) << 4); // 1 -> 16
             for (var i = 0; i < blocks; ++i) {
-                var offset = i << 23; // 1 -> 0x800000
-                var length = Math.Min(size - offset, CHUNK_SIZE);
+                var offset = ((long) i) << 27; // 1 -> 0x8000000
+                var length = (int) Math.Min(size - offset, CHUNK_SIZE);
                 stream.ReadExactly(chunk.Span[..length]);
-                // some 128-bit mystery hash.
-                // Hash(chunk, hashList.Slice(i << 4));
+                MD5.HashData(chunk.Span[..length]).CopyTo(hashList.Span[(i << 4)..]);
             }
 
             var hashSeed = MemoryMarshal.Cast<byte, uint>(hashList.Span[^16..]);

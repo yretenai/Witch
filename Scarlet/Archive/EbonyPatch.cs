@@ -17,7 +17,7 @@ public readonly record struct EbonyPatch : IDisposable {
     }
 
     public EbonyPatch(MemoryOwner<byte> pack) {
-        if (pack.Length < Unsafe.SizeOf<EbonyArchiveHeader>()) {
+        if (pack.Length < EbonyArchiveHeader.Size) {
             throw new InvalidDataException("File is too small to be a PACK archive.");
         }
 
