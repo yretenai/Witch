@@ -98,10 +98,10 @@ public readonly record struct EbonyArchive : IDisposable {
         var checksum = CalculateHash(Stream, size);
         if (checksum == 0) {
             Log.Warning("EARC Checksum Validation Skipped! No sane person should hash a large file!");
-        }else if (checksum != Header.Checksum) {
+        } else if (checksum != Header.Checksum) {
             Log.Error("EARC Checksum validation failed! Header = {Checksum:X16} Witch = {OurChecksum:X16}", Header.Checksum, checksum);
         } else {
-            Log.Information("EARC Checksum verified! Header = {Checksum:X16} Witch = {OurChecksum:X16}",  Header.Checksum, checksum);
+            Log.Information("EARC Checksum verified! Header = {Checksum:X16} Witch = {OurChecksum:X16}", Header.Checksum, checksum);
         }
     }
 
@@ -163,10 +163,10 @@ public readonly record struct EbonyArchive : IDisposable {
             // hash up to MAX_SIZE (128 MiB) of data in CHUNK_SIZE (8MiB) chunks and hash them into a 128-bit hash array.
             var blocks = (int) (size.Align(CHUNK_SIZE) >> 27); // 0x8000000 -> 0x1
 
-            using var chunk = MemoryOwner<byte>.Allocate((int)CHUNK_SIZE);
+            using var chunk = MemoryOwner<byte>.Allocate((int) CHUNK_SIZE);
             using var hashList = MemoryOwner<byte>.Allocate((blocks + 1) << 4); // 1 -> 16
             for (var i = 0; i < blocks; ++i) {
-                var offset = ((long) i) << 27; // 1 -> 0x8000000
+                var offset = (long) i << 27; // 1 -> 0x8000000
                 var length = (int) Math.Min(size - offset, CHUNK_SIZE);
                 stream.ReadExactly(chunk.Span[..length]);
                 MD5.HashData(chunk.Span[..length]).CopyTo(hashList.Span[(i << 4)..]);
