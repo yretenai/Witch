@@ -15,15 +15,6 @@ public readonly record struct FileId {
     public FileId(ulong value) => Value = value;
     public FileId(uint typeId, ulong checksum) => Value = (ulong)typeId << 44 | (checksum & 0xFFFFFFFFFFF);
     public FileId(string path) : this(path, Path.GetExtension(path)[1..]) { }
-
-    private const ulong HashSeed64 = 1469598103934665603;
-    private const ulong HashPrime64 = 1099511628211;
-
-    public static ulong Hash64(string value)
-    {
-        var bytes = Encoding.UTF8.GetBytes(value);
-        return bytes.Aggregate(HashSeed64, (current, b) => (current ^ b) * HashPrime64);
-    }
     public FileId(string path, string ext) {
         using var fnv = FowlerNollVo.CreateAlternate((FNV64Basis) 0x14650FB0739D0383);
         var pathHash = Hash64(path);
