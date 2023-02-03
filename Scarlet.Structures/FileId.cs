@@ -17,7 +17,7 @@ public readonly record struct FileId {
     public FileId(string path) : this(path, Path.GetExtension(path)[1..]) { }
     public FileId(string path, string ext) {
         using var fnv = FowlerNollVo.CreateAlternate((FNV64Basis) 0x14650FB0739D0383);
-        var pathHash = Hash64(path);
+        var pathHash = fnv.ComputeHashValue(Encoding.UTF8.GetBytes(path));
 
         fnv.Reset(0x14650FB0739D0383);
         var typeHash = fnv.ComputeHashValue(Encoding.UTF8.GetBytes(ext));

@@ -8,8 +8,10 @@ using System.Runtime.Serialization;
 
 namespace LittleMessagePack;
 
+public record MessagePackElement(MessagePackTypeId Type, object? Value);
+
 public static class MessagePackDeserializer {
-    private record struct CacheEntry(Type Type, FieldInfo Field);
+    private record struct CacheEntry(Type Type, FieldInfo? Field);
 
     private static Dictionary<Type, CacheEntry[]> Cache { get; } = new();
 
@@ -25,43 +27,53 @@ public static class MessagePackDeserializer {
     public static object? Read(Type type, Memory<byte> data, in MessagePackOptions options) => Read(type, data, options, ref Unsafe.AsRef(0));
 
     private static object? Read(Type type, Memory<byte> data, in MessagePackOptions options, ref int offset) {
-        var typeList = GetCachedEntry(type).AsSpan();
-
-        if (type.IsEnum || type.IsPrimitive || type == typeof(string) || type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(Memory<>) || type.IsAssignableTo(typeof(IDictionary)) || type.IsAssignableTo(typeof(IList)) || options.Extensions.Any(x => x.HandlesType(type))) {
-            var value = ReadValue(type, data, options, ref offset);
+        if (type != typeof(object[]) && (type.IsEnum || type.IsPrimitive || type == typeof(MessagePackElement) || type == typeof(string) || type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(Memory<>) || type.IsAssignableTo(typeof(IDictionary)) || type.IsAssignableTo(typeof(IList)) || options.Extensions.Any(x => x.HandlesType(type)))) {
+            var value = (object) ReadValue(type, data, options, ref offset);
             TypePunt(options, type, ref value);
             return value;
-        } else {
-            var instance = Activator.CreateInstance(type);
-            var typeOffset = 0;
-            while (offset < data.Length) {
-                if (typeOffset >= typeList.Length) {
-                    break;
-                }
+        }
 
-                var (targetType, field) = typeList[typeOffset++];
-
-                object? value;
-                if (targetType.IsClass || targetType is { IsValueType: true, IsEnum: false }) {
-                    value = Read(targetType, data, options, ref offset);
-                } else {
-                    value = ReadValue(targetType, data, options, ref offset);
-                }
-
-                if (value == default && !options.WriteDefault) {
-                    continue;
-                }
-
-                TypePunt(options, targetType, ref value);
-
-                field.SetValue(instance, value);
+        var instance = Activator.CreateInstance(type);
+        var typeOffset = 0;
+        var isGeneric = type == typeof(object[]) || type == typeof(List<object>);
+        var typeList = GetCachedEntry(type).AsSpan();
+        var generic = new CacheEntry(typeof(object), default(FieldInfo));
+        while (offset < data.Length) {
+            if (!isGeneric && typeOffset >= typeList.Length) {
+                break;
             }
 
-            return instance;
+            var (targetType, field) = isGeneric ? generic : typeList[typeOffset++];
+
+            object? value;
+            if (targetType != typeof(object) && (targetType.IsClass || targetType is { IsValueType: true, IsEnum: false })) {
+                value = Read(targetType, data, options, ref offset);
+            } else {
+                value = ReadValue(targetType, data, options, ref offset);
+            }
+
+            if (value == default && !options.WriteDefault) {
+                continue;
+            }
+
+            TypePunt(options, targetType, ref value);
+
+            if (field != null) {
+                field.SetValue(instance, value);
+            } else if (instance is IList list) {
+                list.Add(value);
+            }
         }
+
+        return instance;
     }
 
-    private static void TypePunt(MessagePackOptions options, Type target, ref object? value) {
+    private static void TypePunt(MessagePackOptions options, Type target, ref object? element) {
+        var value = ((MessagePackElement) element!).Value;
+        if (target == typeof(MessagePackElement)) {
+            return;
+        }
+
         if (value != default) {
             var targetType = value.GetType();
             foreach (var converter in options.Converters) {
@@ -132,10 +144,12 @@ public static class MessagePackDeserializer {
                 }
             }
         }
+
+        element = value;
     }
 
 
-    private static object? ReadValue(Type type, Memory<byte> data, in MessagePackOptions options, ref int offset) {
+    private static MessagePackElement ReadValue(Type type, Memory<byte> data, in MessagePackOptions options, ref int offset) {
         var opcode = data.Span[offset++];
         var typeID = (MessagePackTypeId) opcode;
 
@@ -275,7 +289,7 @@ public static class MessagePackDeserializer {
             }
         }
 
-        return value;
+        return new MessagePackElement(typeID, value);
     }
 
     private static object? ReadExtension(Memory<byte> data, int length, sbyte typeId, in MessagePackOptions options, ref int offset) {
@@ -346,6 +360,10 @@ public static class MessagePackDeserializer {
     }
 
     private static CacheEntry[] GetCachedEntry(Type type) {
+        if (type == typeof(object[]) || type == typeof(List<object>)) {
+            return Array.Empty<CacheEntry>();
+        }
+
         if (!Cache.TryGetValue(type, out var fields)) {
             fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance).Where(x => x.GetCustomAttribute<IgnoreDataMemberAttribute>() == null).Select(x => new CacheEntry(x.FieldType, x)).ToArray();
             Cache[type] = fields;
