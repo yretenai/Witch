@@ -2,6 +2,4 @@
 
 // SAB = "Sound Audio Binary"
 // todo: implement this
-public readonly record struct SoundAudioBinary {
-
-}
+public readonly record struct SoundAudioBinary { }

@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Structures;
@@ -13,7 +12,7 @@ public readonly record struct EbonyPatch : IDisposable {
 
     public EbonyPatch() {
         Buffer = MemoryOwner<byte>.Empty;
-        BlitIDs = BlitStruct<FileId>.Empty;
+        BlitIDs = BlitStruct<AssetId>.Empty;
     }
 
     public EbonyPatch(MemoryOwner<byte> pack) {
@@ -36,14 +35,14 @@ public readonly record struct EbonyPatch : IDisposable {
         Debug.Assert(Header.ChunkSize == 0, "Header.ChunkSize == 0");
         Debug.Assert(Header.Checksum == 0, "Header.Checksum == 0");
 
-        Buffer = pack.Slice((int) Header.DataOffset, (int)(Header.FileCount * 8));
-        BlitIDs = new BlitStruct<FileId>(Buffer, 0, Header.FileCount);
+        Buffer = pack.Slice((int) Header.DataOffset, (int) (Header.FileCount * 8));
+        BlitIDs = new BlitStruct<AssetId>(Buffer, 0, Header.FileCount);
     }
 
     public MemoryOwner<byte> Buffer { get; }
     public EbonyArchiveHeader Header { get; }
-    public BlitStruct<FileId> BlitIDs { get; }
-    public Span<FileId> IDs => BlitIDs.Span;
+    public BlitStruct<AssetId> BlitIDs { get; }
+    public Span<AssetId> IDs => BlitIDs.Span;
 
     public void Dispose() {
         Buffer.Dispose();

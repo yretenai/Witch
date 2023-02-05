@@ -1,20 +1,21 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
+using Serilog;
 
 namespace Scarlet;
 
-public sealed class ResourceManager : IDisposable {
-    public static ResourceManager Instance { get; } = new();
+public sealed class AssetManager : IDisposable {
+    public static AssetManager Instance { get; } = new();
 
     public List<EbonyArchive> Archives { get; } = new();
     public List<EbonyReplace> Replacements { get; } = new();
-    public Dictionary<string, FileReference> FileTable { get; } = new();
-    public Dictionary<FileId, FileReference>  IdTable { get; } = new();
-    public Dictionary<FileId, string>  UriTable { get; } = new();
-    public Dictionary<string, string>  UriLookup { get; } = new();
+    public Dictionary<AssetId, FileReference> IdTable { get; } = new();
+    public Dictionary<ulong, string> UriTable { get; } = new();
+    public Dictionary<ulong, ulong> ExtensionTable { get; } = new();
 
     public void Dispose() {
         foreach (var archive in Archives) {
@@ -31,50 +32,46 @@ public sealed class ResourceManager : IDisposable {
         Archives.Add(archive);
     }
 
-    public bool TryResolveDataPath(string dataPath, out FileReference reference) {
-        if (UriLookup.TryGetValue(dataPath, out var path)) {
-            reference = FileTable[path];
-            return true;
+    public bool TryResolveId(AssetId id, out AssetId reference) {
+        if (!ExtensionTable.TryGetValue(id, out var idActual)) {
+            idActual = id;
         }
 
-        reference = default;
-        return false;
+        foreach (var replacement in Replacements) {
+            if (replacement.Replacements.TryGetValue(idActual, out var replaced)) {
+                idActual = replaced;
+                break;
+            }
+        }
+
+        reference = idActual;
+        return IdTable.ContainsKey(reference);
     }
 
     public void Build() {
-        using var _perf = new PerformanceCounter<PerformanceHost.ResourceManager>();
-
-        var count = (int) Archives.Sum(x => x.Header.FileCount);
-        FileTable.EnsureCapacity(count);
-        IdTable.EnsureCapacity(count);
-        UriTable.EnsureCapacity(count);
-        UriLookup.EnsureCapacity(count);
+        using var _perf = new PerformanceCounter<PerformanceHost.AssetManager>();
 
         for (var archiveIndex = 0; archiveIndex < Archives.Count; archiveIndex++) {
             var archive = Archives[archiveIndex];
             for (var fileIndex = 0; fileIndex < archive.FileEntries.Length; fileIndex++) {
                 var file = archive.FileEntries[fileIndex];
                 var dataPath = file.GetDataPath(archive.Buffer);
-                var path = file.GetPath(archive.Buffer);
+                var pure = new AssetId(dataPath);
                 UriTable[file.Id] = dataPath;
-                UriLookup[dataPath] = path;
-
-                if ((file.Flags & EbonyArchiveFileFlags.Reference) != 0) {
-                    continue;
+                if (pure != file.Id) {
+                    UriTable[pure] = dataPath;
+                    ExtensionTable[pure] = file.Id;
                 }
 
-                if ((file.Flags & EbonyArchiveFileFlags.Deleted) != 0) {
-                    continue;
-                }
-
-                if ((file.Flags & EbonyArchiveFileFlags.Loose) != 0) {
+                if (file.Size == 0) {
                     continue;
                 }
 
                 var reference = new FileReference(archiveIndex, fileIndex);
-                FileTable[path] = reference;
-                FileTable[dataPath] = reference;
                 IdTable[file.Id] = reference;
+                if (pure != file.Id) {
+                    IdTable[pure] = reference;
+                }
 
                 if (dataPath.EndsWith(".erep")) {
                     if (TryCreate<EbonyReplace>(archive, file, out var data)) {
@@ -84,21 +81,15 @@ public sealed class ResourceManager : IDisposable {
             }
         }
 
-        FileId.IdTable = UriTable;
+        AssetId.IdTable = UriTable;
     }
 
-    public bool TryCreate<T>(in string path, [MaybeNullWhen(false)] out T instance) where T : new() {
-        if (FileTable.TryGetValue(path, out var reference)) {
-            var archive = Archives[reference.ArchiveIndex];
-            return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
+    public bool TryCreate<T>(in AssetId path, [MaybeNullWhen(false)] out T instance) where T : new() {
+        if (!TryResolveId(path.Value, out var pathActual)) {
+            pathActual = path;
         }
 
-        instance = default;
-        return false;
-    }
-
-    public bool TryCreate<T>(in FileId path, [MaybeNullWhen(false)] out T instance) where T : new() {
-        if (IdTable.TryGetValue(path, out var reference)) {
+        if (IdTable.TryGetValue(pathActual, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
             return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
         }
@@ -109,13 +100,23 @@ public sealed class ResourceManager : IDisposable {
 
     public static bool TryCreate<T>(EbonyArchive earc, in EbonyArchiveFile file, [MaybeNullWhen(false)] out T instance) where T : new() {
         var data = earc.Read(file);
-        var localInstance = Activator.CreateInstance(typeof(T), data);
+
+        object? localInstance = null;
+        try {
+            localInstance = Activator.CreateInstance(typeof(T), data);
+        } catch (Exception e) {
+            Log.Error(e, "Failed to deserialize {File}", file.ToString());
+
+            if (Debugger.IsAttached) {
+                throw;
+            }
+        }
 
         if (localInstance is not IDisposable) {
             data.Dispose();
         }
 
-        if(localInstance is T result) {
+        if (localInstance is T result) {
             instance = result;
             return true;
         }
@@ -124,17 +125,12 @@ public sealed class ResourceManager : IDisposable {
         return false;
     }
 
-    public MemoryOwner<byte>? Read(in string path) {
-        if (FileTable.TryGetValue(path, out var reference)) {
-            var archive = Archives[reference.ArchiveIndex];
-            return archive.Read(archive.FileEntries[reference.FileIndex]);
+    public MemoryOwner<byte>? Read(in AssetId path) {
+        if (!TryResolveId(path.Value, out var pathActual)) {
+            pathActual = path;
         }
 
-        return null;
-    }
-
-    public MemoryOwner<byte>? Read(in FileId path) {
-        if (IdTable.TryGetValue(path, out var reference)) {
+        if (IdTable.TryGetValue(pathActual, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
             return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
@@ -147,5 +143,8 @@ public sealed class ResourceManager : IDisposable {
         public EbonyArchiveFile File => Archive.FileEntries[FileIndex];
 
         public (EbonyArchive Archive, EbonyArchiveFile File) Deconstruct() => (Archive, File);
+
+        public MemoryOwner<byte> Read() => Archive.Read(File);
+        public bool TryCreate<T>([MaybeNullWhen(false)] out T instance) where T : new() => AssetManager.TryCreate(Archive, File, out instance);
     }
 }

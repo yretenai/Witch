@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scarlet.Structures", "Scarl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DragonLib", "DragonLib\DragonLib\DragonLib.csproj", "{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LittleMessagePack", "LittleMessagePack\LittleMessagePack.csproj", "{C40A3184-49C4-4EEA-AD57-B52B47743616}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,9 +36,5 @@ Global
 		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{93B2FDFF-475C-472F-8BEE-FD738D98D7D7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C40A3184-49C4-4EEA-AD57-B52B47743616}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C40A3184-49C4-4EEA-AD57-B52B47743616}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C40A3184-49C4-4EEA-AD57-B52B47743616}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C40A3184-49C4-4EEA-AD57-B52B47743616}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -2,6 +2,4 @@
 
 // MAB = "Music Audio Binary"
 // todo: implement this
-public readonly record struct MusicAudioBinary {
-
-}
+public readonly record struct MusicAudioBinary { }

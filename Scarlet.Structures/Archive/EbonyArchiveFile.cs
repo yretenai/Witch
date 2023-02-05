@@ -5,7 +5,7 @@ namespace Scarlet.Structures.Archive;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x28)]
 public record struct EbonyArchiveFile {
-    public FileId Id;
+    public AssetId Id;
     public int Size;
     public int CompressedSize;
     public EbonyArchiveFileFlags Flags;
@@ -16,6 +16,6 @@ public record struct EbonyArchiveFile {
     public byte Locale;
     public ushort Seed;
 
-    public string GetDataPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, DataPathOffset);
-    public string GetPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, PathOffset);
+    public readonly string GetDataPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, DataPathOffset);
+    public readonly string GetPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, PathOffset);
 }
