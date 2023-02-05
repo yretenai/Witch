@@ -10,7 +10,7 @@ public class ListCommand : EARCCommand {
     public ListCommand(WitchFlags flags) : base(flags) {
         foreach (var (fileId, resource) in AssetManager.Instance.IdTable) {
             var (archive, file) = resource.Deconstruct();
-            Log.Information("{FileId:X16} = {Flags:F} : {Resource}", fileId.Value, file.Flags & (EbonyArchiveFileFlags) 0xFFFFFFFF, file.GetDataPath(archive.Buffer));
+            Log.Information("{FileId:X16} = {Flags:F} : {Resource}", fileId.Value, file.Flags & (EbonyArchiveFileFlags) 0xFFFFFFFF, resource.DataPath);
         }
     }
 }

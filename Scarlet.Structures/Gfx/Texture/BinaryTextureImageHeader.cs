@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Scarlet.Structures.Gfx;
+namespace Scarlet.Structures.Gfx.Texture;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x38)]
 public record struct BinaryTextureImageHeader {

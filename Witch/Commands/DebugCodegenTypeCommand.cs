@@ -12,7 +12,7 @@ public class DebugCodegenTypeCommand : EARCCommand {
         var ids = TypeIdRegistry.IdTable;
         foreach (var (fileId, resource) in AssetManager.Instance.IdTable) {
             var (archive, file) = resource.Deconstruct();
-            var dataPath = file.GetDataPath(archive.Buffer);
+            var dataPath = resource.DataPath;
             var realPath = file.GetPath(archive.Buffer);
             var dataName = Path.GetFileName(dataPath);
             var realName = Path.GetFileName(realPath);

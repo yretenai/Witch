@@ -1,4 +1,4 @@
-﻿namespace Scarlet.Structures.Gfx;
+﻿namespace Scarlet.Structures.Gfx.Texture;
 
 public enum BinaryTextureFormat : ushort {
     A8B8G8R8 = 0x4,

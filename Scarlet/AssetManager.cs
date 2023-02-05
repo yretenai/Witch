@@ -66,7 +66,7 @@ public sealed class AssetManager : IDisposable {
                     continue;
                 }
 
-                var reference = new FileReference(archiveIndex, fileIndex);
+                var reference = new FileReference(archiveIndex, fileIndex, dataPath);
                 IdTable[file.Id] = reference;
                 if (pure != file.Id) {
                     IdTable[pure] = reference;
@@ -162,7 +162,7 @@ public sealed class AssetManager : IDisposable {
         }
     }
 
-    public readonly record struct FileReference(int ArchiveIndex, int FileIndex) {
+    public readonly record struct FileReference(int ArchiveIndex, int FileIndex, string DataPath) {
         public EbonyArchive Archive => Instance.Archives[ArchiveIndex];
         public EbonyArchiveFile File => Archive.FileEntries[FileIndex];
 
