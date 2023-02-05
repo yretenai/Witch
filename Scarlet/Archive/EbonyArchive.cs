@@ -94,6 +94,7 @@ public readonly record struct EbonyArchive : IDisposable {
 
         Header = header[0];
 
+    #if DEBUG
         var size = FileEntries[^1].DataOffset + FileEntries[^1].CompressedSize;
         var checksum = CalculateHash(Stream, size);
         if (checksum == 0) {
@@ -105,6 +106,7 @@ public readonly record struct EbonyArchive : IDisposable {
         } else {
             Log.Information("EARC Checksum verified! Header = {Checksum:X16} Witch = {OurChecksum:X16}", Header.Checksum, checksum);
         }
+    #endif
     }
 
     public Stream Stream { get; }
@@ -120,7 +122,14 @@ public readonly record struct EbonyArchive : IDisposable {
         BlitFileEntries.Dispose();
     }
 
-    public static ulong CalculateHashXV(Stream stream, long dataSize) {
+    public static ulong CalculateHash(Stream stream, long dataSize, bool force = false) =>
+        AssetManager.Game switch {
+            EbonyGame.Black => CalculateHashBlack(stream, dataSize),
+            EbonyGame.Witch => CalculateHashWitch(stream, dataSize, force),
+            _               => 0,
+        };
+
+    public static ulong CalculateHashBlack(Stream stream, long dataSize) {
         if (dataSize < EbonyArchiveHeader.Size) {
             return 0;
         }
@@ -141,7 +150,7 @@ public readonly record struct EbonyArchive : IDisposable {
         }
     }
 
-    public static ulong CalculateHash(Stream stream, long dataSize, bool force = false) {
+    public static ulong CalculateHashWitch(Stream stream, long dataSize, bool force = false) {
         if (dataSize > int.MaxValue && !force) {
             return 0;
         }

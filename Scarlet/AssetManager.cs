@@ -12,6 +12,8 @@ namespace Scarlet;
 public sealed class AssetManager : IDisposable {
     public static AssetManager Instance { get; } = new();
 
+    public static EbonyGame Game { get; set; } = EbonyGame.Witch;
+
     public List<EbonyArchive> Archives { get; } = new();
     public List<EbonyReplace> Replacements { get; } = new();
     public Dictionary<AssetId, FileReference> IdTable { get; } = new();
@@ -21,10 +23,6 @@ public sealed class AssetManager : IDisposable {
     public void Dispose() {
         foreach (var archive in Archives) {
             archive.Dispose();
-        }
-
-        foreach (var replace in Replacements) {
-            replace.Dispose();
         }
     }
 
@@ -172,5 +170,21 @@ public sealed class AssetManager : IDisposable {
 
         public MemoryOwner<byte> Read() => Archive.Read(File);
         public T Create<T>() where T : IAsset, new() => AssetManager.Create<T>(Archive, File);
+    }
+
+    public static void DetectGame(string installDir) {
+        var exe = Directory.GetFiles(installDir, "*.exe", SearchOption.TopDirectoryOnly).Select(x => Path.GetFileNameWithoutExtension(x).ToLowerInvariant()).ToHashSet();
+
+        if (exe.Contains("ffxv_s")) {
+            Game = EbonyGame.Black;
+            return;
+        }
+
+        if (exe.Contains("forspoken")) {
+            Game = EbonyGame.Witch;
+            return;
+        }
+
+        throw new InvalidOperationException("Could not determine if the installation is FFXV or FORSPOKEN. Is the path correct?");
     }
 }
