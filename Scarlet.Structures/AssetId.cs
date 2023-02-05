@@ -25,6 +25,7 @@ public readonly record struct AssetId {
 
     public static AssetId Parse(string value) => ulong.Parse(value);
     public static implicit operator AssetId(ulong value) => new() { Value = value };
+    public static implicit operator AssetId(TypeId value) => new() { Value = (ulong)value.Value << 44 };
     public static implicit operator ulong(AssetId id) => id.Value;
     public static Dictionary<ulong, string> IdTable { get; set; } = new();
     public override string ToString() => IdTable.TryGetValue(this, out var result) || IdTable.TryGetValue(Path, out result) ? result : Value.ToString("X16");

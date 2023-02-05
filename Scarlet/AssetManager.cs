@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
+using Scarlet.Exceptions;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 using Serilog;
@@ -74,9 +75,7 @@ public sealed class AssetManager : IDisposable {
                 }
 
                 if (dataPath.EndsWith(".erep")) {
-                    if (TryCreate<EbonyReplace>(archive, file, out var data)) {
-                        Replacements.Add(data);
-                    }
+                    Replacements.Add(reference.Create<EbonyReplace>());
                 }
             }
         }
@@ -84,26 +83,40 @@ public sealed class AssetManager : IDisposable {
         AssetId.IdTable = UriTable;
     }
 
-    public bool TryCreate<T>(in AssetId path, [MaybeNullWhen(false)] out T instance) where T : new() {
+    public bool TryCreate<T>(in AssetId path, [MaybeNullWhen(false)] out T instance) where T : IAsset, new() {
         if (!TryResolveId(path.Value, out var pathActual)) {
             pathActual = path;
         }
 
         if (IdTable.TryGetValue(pathActual, out var reference)) {
             var archive = Archives[reference.ArchiveIndex];
-            return TryCreate(archive, archive.FileEntries[reference.FileIndex], out instance);
+            instance = Create<T>(archive, archive.FileEntries[reference.FileIndex]);
+            return true;
         }
 
         instance = default;
         return false;
     }
 
-    public static bool TryCreate<T>(EbonyArchive earc, in EbonyArchiveFile file, [MaybeNullWhen(false)] out T instance) where T : new() {
+    public T Create<T>(in AssetId path) where T : IAsset, new() {
+        if (!TryResolveId(path.Value, out var pathActual)) {
+            pathActual = path;
+        }
+
+        if (IdTable.TryGetValue(pathActual, out var reference)) {
+            var archive = Archives[reference.ArchiveIndex];
+            return Create<T>(archive, archive.FileEntries[reference.FileIndex]);
+        }
+
+        throw new AssetIdNotFoundException(path);
+    }
+
+    public static T Create<T>(EbonyArchive earc, in EbonyArchiveFile file) where T : IAsset, new() {
         var data = earc.Read(file);
 
         object? localInstance = null;
         try {
-            localInstance = Activator.CreateInstance(typeof(T), data);
+            localInstance = Activator.CreateInstance(typeof(T), file.Id, data);
         } catch (Exception e) {
             Log.Error(e, "Failed to deserialize {File}", file.ToString());
 
@@ -117,15 +130,13 @@ public sealed class AssetManager : IDisposable {
         }
 
         if (localInstance is T result) {
-            instance = result;
-            return true;
+            return result;
         }
 
-        instance = default;
-        return false;
+        throw new UnreachableException();
     }
 
-    public MemoryOwner<byte>? Read(in AssetId path) {
+    public MemoryOwner<byte> Read(in AssetId path) {
         if (!TryResolveId(path.Value, out var pathActual)) {
             pathActual = path;
         }
@@ -135,7 +146,22 @@ public sealed class AssetManager : IDisposable {
             return archive.Read(archive.FileEntries[reference.FileIndex]);
         }
 
-        return null;
+        throw new AssetIdNotFoundException(path);
+    }
+
+    public bool TryRead(in AssetId path, [MaybeNullWhen(false)] out MemoryOwner<byte> buffer) {
+        if (!TryResolveId(path.Value, out var pathActual)) {
+            pathActual = path;
+        }
+
+        if (IdTable.TryGetValue(pathActual, out var reference)) {
+            var archive = Archives[reference.ArchiveIndex];
+            buffer = archive.Read(archive.FileEntries[reference.FileIndex]);
+            return true;
+        } else {
+            buffer = null;
+            return false;
+        }
     }
 
     public readonly record struct FileReference(int ArchiveIndex, int FileIndex) {
@@ -145,6 +171,6 @@ public sealed class AssetManager : IDisposable {
         public (EbonyArchive Archive, EbonyArchiveFile File) Deconstruct() => (Archive, File);
 
         public MemoryOwner<byte> Read() => Archive.Read(File);
-        public bool TryCreate<T>([MaybeNullWhen(false)] out T instance) where T : new() => AssetManager.TryCreate(Archive, File, out instance);
+        public T Create<T>() where T : IAsset, new() => AssetManager.Create<T>(Archive, File);
     }
 }

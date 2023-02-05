@@ -15,11 +15,13 @@ public static class TypeIdRegistry {
         { 0x56E70u, "anmgph" },
         { 0xDD5A0u, "apb" },
         { 0xA68CAu, "atlas" },
+        { 0x5C91Bu, "autoext" },
         { 0xA31A0u, "bin" },
         { 0x38FF3u, "blast" },
         { 0xCF1B0u, "blastc" },
         { 0x28B3Eu, "bnm" },
         { 0x259C8u, "btex" },
+        { 0xA806Du, "btexheader" },
         { 0xEB241u, "ccb" },
         { 0xEB90Du, "ccf" },
         { 0x9ACD3u, "ch.sb" },
@@ -29,11 +31,15 @@ public static class TypeIdRegistry {
         { 0x3D6D8u, "customdata" },
         { 0x49D2Bu, "data" },
         { 0xB1960u, "dds" },
+        { 0x80CF0u, "dearc" },
         { 0x393A3u, "dummy.txt" },
         { 0x2DCA6u, "earc" },
+        { 0x3CF07u, "earcref" },
         { 0xDC0F5u, "ebex" },
         { 0xFB046u, "elx" },
+        { 0x9276Fu, "emem" },
         { 0xF072Eu, "empath" },
+        { 0xAA358u, "enttray" },
         { 0x2E1FDu, "erep" },
         { 0xE5A3Fu, "exml" },
         { 0x5FB44u, "exr" },
@@ -45,6 +51,7 @@ public static class TypeIdRegistry {
         { 0xA2343u, "gmdl.gfxbin" },
         { 0x12F0Bu, "gmtl" },
         { 0xF2DB3u, "gmtl.gfxbin" },
+        { 0x3911Eu, "gmtla" },
         { 0xC5E90u, "gpubin" },
         { 0xDD95Au, "heb" },
         { 0x3108Cu, "hephysx" },
@@ -57,6 +64,7 @@ public static class TypeIdRegistry {
         { 0x677CAu, "lipmap" },
         { 0x571EBu, "list" },
         { 0xB064Au, "lsd" },
+        { 0xCBFD9u, "mgpubin" },
         { 0xE959Fu, "n3d2p_raw" },
         { 0xB9C3Cu, "nav" },
         { 0xDB3C3u, "nav_cell_ref" },
@@ -73,10 +81,12 @@ public static class TypeIdRegistry {
         { 0x7CC7Cu, "pkr" },
         { 0x49B7Cu, "pmdl" },
         { 0x61F66u, "png" },
+        { 0x63A1Du, "prefab" },
         { 0xE9D31u, "ps.sb" },
         { 0xB8247u, "psocache" },
         { 0xE101Cu, "r.btex" },
         { 0x6473Eu, "ragdoll" },
+        { 0x928D1u, "raygmtl" },
         { 0x76A58u, "res_info" },
         { 0xDAB71u, "sapb" },
         { 0x31C1u, "sax" },
@@ -119,11 +129,13 @@ public static class TypeIdRegistry {
     public const uint ANMGPH = 0x56E70u;
     public const uint APB = 0xDD5A0u;
     public const uint ATLAS = 0xA68CAu;
+    public const uint AUTOEXT = 0x5C91Bu;
     public const uint BIN = 0xA31A0u;
     public const uint BLAST = 0x38FF3u;
     public const uint BLASTC = 0xCF1B0u;
     public const uint BNM = 0x28B3Eu;
     public const uint BTEX = 0x259C8u;
+    public const uint BTEXHEADER = 0xA806Du;
     public const uint CCB = 0xEB241u;
     public const uint CCF = 0xEB90Du;
     public const uint CH_SB = 0x9ACD3u;
@@ -133,11 +145,15 @@ public static class TypeIdRegistry {
     public const uint CUSTOMDATA = 0x3D6D8u;
     public const uint DATA = 0x49D2Bu;
     public const uint DDS = 0xB1960u;
+    public const uint DEARC = 0x80CF0u;
     public const uint DUMMY_TXT = 0x393A3u;
     public const uint EARC = 0x2DCA6u;
+    public const uint EARCREF = 0x3CF07u;
     public const uint EBEX = 0xDC0F5u;
     public const uint ELX = 0xFB046u;
+    public const uint EMEM = 0x9276Fu;
     public const uint EMPATH = 0xF072Eu;
+    public const uint ENTTRAY = 0xAA358u;
     public const uint EREP = 0x2E1FDu;
     public const uint EXML = 0xE5A3Fu;
     public const uint EXR = 0x5FB44u;
@@ -149,6 +165,7 @@ public static class TypeIdRegistry {
     public const uint GMDL_GFXBIN = 0xA2343u;
     public const uint GMTL = 0x12F0Bu;
     public const uint GMTL_GFXBIN = 0xF2DB3u;
+    public const uint GMTLA = 0x3911Eu;
     public const uint GPUBIN = 0xC5E90u;
     public const uint HEB = 0xDD95Au;
     public const uint HEPHYSX = 0x3108Cu;
@@ -161,6 +178,7 @@ public static class TypeIdRegistry {
     public const uint LIPMAP = 0x677CAu;
     public const uint LIST = 0x571EBu;
     public const uint LSD = 0xB064Au;
+    public const uint MGPUBIN = 0xCBFD9u;
     public const uint N3D2P_RAW = 0xE959Fu;
     public const uint NAV = 0xB9C3Cu;
     public const uint NAV_CELL_REF = 0xDB3C3u;
@@ -177,10 +195,12 @@ public static class TypeIdRegistry {
     public const uint PKR = 0x7CC7Cu;
     public const uint PMDL = 0x49B7Cu;
     public const uint PNG = 0x61F66u;
+    public const uint PREFAB = 0x63A1Du;
     public const uint PS_SB = 0xE9D31u;
     public const uint PSOCACHE = 0xB8247u;
     public const uint R_BTEX = 0xE101Cu;
     public const uint RAGDOLL = 0x6473Eu;
+    public const uint RAYGMTL = 0x928D1u;
     public const uint RES_INFO = 0x76A58u;
     public const uint SAPB = 0xDAB71u;
     public const uint SAX = 0x31C1u;

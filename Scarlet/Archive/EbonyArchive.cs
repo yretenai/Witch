@@ -97,8 +97,10 @@ public readonly record struct EbonyArchive : IDisposable {
         var size = FileEntries[^1].DataOffset + FileEntries[^1].CompressedSize;
         var checksum = CalculateHash(Stream, size);
         if (checksum == 0) {
-            Log.Warning("EARC Checksum Validation Skipped! No sane person should hash a large file!");
-        } else if (checksum != Header.Checksum) {
+            return;
+        }
+
+        if (checksum != Header.Checksum) {
             Log.Error("EARC Checksum validation failed! Header = {Checksum:X16} Witch = {OurChecksum:X16}", Header.Checksum, checksum);
         } else {
             Log.Information("EARC Checksum verified! Header = {Checksum:X16} Witch = {OurChecksum:X16}", Header.Checksum, checksum);

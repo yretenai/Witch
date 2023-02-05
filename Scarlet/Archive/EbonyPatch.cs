@@ -1,13 +1,14 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance.Buffers;
+using Scarlet.Exceptions;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
 // PACK files are basically just an empty EbonyArchive with only IDs.
-public readonly record struct EbonyPatch : IDisposable {
+public readonly record struct EbonyPatch : IAsset, IDisposable {
     private const uint MagicValue = 0x5041434B; // PACK
 
     public EbonyPatch() {
@@ -15,7 +16,13 @@ public readonly record struct EbonyPatch : IDisposable {
         BlitIDs = BlitStruct<AssetId>.Empty;
     }
 
-    public EbonyPatch(MemoryOwner<byte> pack) {
+    public EbonyPatch(AssetId assetId, MemoryOwner<byte> pack) {
+        if (assetId.Type.Value is not TypeIdRegistry.EARC) {
+            throw new TypeIdMismatchException(assetId, AssetId);
+        }
+
+        AssetId = assetId;
+
         if (pack.Length < EbonyArchiveHeader.Size) {
             throw new InvalidDataException("File is too small to be a PACK archive.");
         }
@@ -39,6 +46,7 @@ public readonly record struct EbonyPatch : IDisposable {
         BlitIDs = new BlitStruct<AssetId>(Buffer, 0, Header.FileCount);
     }
 
+    public AssetId AssetId { get; }
     public MemoryOwner<byte> Buffer { get; }
     public EbonyArchiveHeader Header { get; }
     public BlitStruct<AssetId> BlitIDs { get; }

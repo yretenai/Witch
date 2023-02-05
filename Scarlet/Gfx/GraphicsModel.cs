@@ -1,11 +1,19 @@
 ﻿using System.Buffers;
+using Scarlet.Exceptions;
 using Scarlet.Structures;
 using Scarlet.Structures.Gfx;
 
 namespace Scarlet.Gfx;
 
-public readonly record struct GraphicsModel {
-    public GraphicsModel(IMemoryOwner<byte> buffer) {
+// GMDL stands for either "GPU" or "Graphics" Model.
+public readonly record struct GraphicsModel : IAsset {
+    public GraphicsModel(AssetId assetId, IMemoryOwner<byte> buffer) {
+        if (assetId.Type.Value is not TypeIdRegistry.GMDL or TypeIdRegistry.GMDL_HAIR or TypeIdRegistry.GMDL_GFXBIN) {
+            throw new TypeIdMismatchException(assetId, TypeIdRegistry.GMDL);
+        }
+
+        AssetId = assetId;
+
         var msgPack = new MessagePackBuffer(buffer.Memory);
 
         Header = new GraphicsBinaryHeader {
@@ -19,5 +27,6 @@ public readonly record struct GraphicsModel {
         }
     }
 
+    public AssetId AssetId { get; }
     public GraphicsBinaryHeader Header { get; }
 }

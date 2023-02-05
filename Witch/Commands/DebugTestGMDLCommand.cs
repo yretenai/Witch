@@ -13,9 +13,7 @@ public class DebugTestGMDLCommand : EARCCommand {
                 continue;
             }
 
-            if (resource.TryCreate<GraphicsModel>(out var unused)) {
-                // stuff.
-            }
+            var gmdl = resource.Create<GraphicsModel>();
         }
     }
 }

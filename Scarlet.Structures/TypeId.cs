@@ -15,9 +15,10 @@ public readonly record struct TypeId {
     }
 
     public static implicit operator TypeId(uint value) => new() { Value = value };
+    public static implicit operator TypeId(AssetId value) => value.Type;
     public static implicit operator uint(TypeId id) => id.Value;
     public static TypeId Parse(string value) => uint.Parse(value);
-    public override string ToString() => TypeIdRegistry.IdTable.TryGetValue(this, out var result) ? result : Value.ToString("X16");
+    public override string ToString() => TypeIdRegistry.IdTable.TryGetValue(this, out var result) ? result : Value.ToString("X5");
     public bool Equals(TypeId? other) => other?.Value == Value;
     public override int GetHashCode() => Value.GetHashCode();
 }
