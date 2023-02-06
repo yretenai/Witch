@@ -16,6 +16,6 @@ public record struct EbonyArchiveFile {
     public byte Locale;
     public ushort Seed;
 
-    public readonly string GetDataPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, DataPathOffset);
-    public readonly string GetPath(MemoryOwner<byte> buffer) => MemoryHelper.GetString(buffer, PathOffset);
+    public readonly string GetDataPath(MemoryOwner<byte> buffer) => ScarletHelpers.GetString(buffer, DataPathOffset);
+    public readonly string GetPath(MemoryOwner<byte> buffer) => ScarletHelpers.GetString(buffer, PathOffset);
 }

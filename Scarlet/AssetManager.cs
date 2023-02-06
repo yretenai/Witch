@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
@@ -14,21 +15,23 @@ public sealed class AssetManager : IDisposable {
 
     public static EbonyGame Game { get; set; } = EbonyGame.Witch;
 
-    public List<EbonyArchive> Archives { get; } = new();
-    public List<EbonyReplace> Replacements { get; } = new();
-    public Dictionary<AssetId, FileReference> IdTable { get; } = new();
-    public Dictionary<ulong, string> UriTable { get; } = new();
+    public ConcurrentDictionary<AssetId, EbonyArchive> Archives { get; } = new();
+    public ConcurrentDictionary<AssetId, EbonyReplace> Replacements { get; } = new();
+    public Dictionary<AssetId, FileReference> UriTable { get; } = new();
     public Dictionary<ulong, ulong> ExtensionTable { get; } = new();
 
     public void Dispose() {
-        foreach (var archive in Archives) {
+        foreach (var (_, archive) in Archives) {
             archive.Dispose();
         }
     }
 
     public void LoadArchive(string file) {
-        var archive = new EbonyArchive(file, file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase));
-        Archives.Add(archive);
+        var isEmem = file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase);
+        var name = $"data://{Path.GetFileNameWithoutExtension(file)}.{(isEmem ? "emem" : "ebex")}";
+        var id = new AssetId(name,  isEmem ? TypeIdRegistry.EMEM : TypeIdRegistry.EARC);
+        var archive = new EbonyArchive(id, name, file);
+        Archives[id] = archive;
     }
 
     public bool TryResolveId(AssetId id, out AssetId reference) {
@@ -36,7 +39,7 @@ public sealed class AssetManager : IDisposable {
             idActual = id;
         }
 
-        foreach (var replacement in Replacements) {
+        foreach (var (_, replacement) in Replacements) {
             if (replacement.Replacements.TryGetValue(idActual, out var replaced)) {
                 idActual = replaced;
                 break;
@@ -44,41 +47,32 @@ public sealed class AssetManager : IDisposable {
         }
 
         reference = idActual;
-        return IdTable.ContainsKey(reference);
+        return UriTable.ContainsKey(reference);
     }
 
     public void Build() {
         using var _perf = new PerformanceCounter<PerformanceHost.AssetManager>();
 
-        for (var archiveIndex = 0; archiveIndex < Archives.Count; archiveIndex++) {
-            var archive = Archives[archiveIndex];
-            for (var fileIndex = 0; fileIndex < archive.FileEntries.Length; fileIndex++) {
-                var file = archive.FileEntries[fileIndex];
+        foreach (var (assetId, archive) in Archives) {
+            UriTable[assetId] = new FileReference(assetId, AssetId.Zero, archive.DataPath);
+
+            foreach (var file in archive.FileEntries) {
                 var dataPath = file.GetDataPath(archive.Buffer);
                 var pure = new AssetId(dataPath);
-                UriTable[file.Id] = dataPath;
+                var reference = new FileReference(assetId, file.Id, dataPath);
+                UriTable[file.Id] = reference;
                 if (pure != file.Id) {
-                    UriTable[pure] = dataPath;
+                    UriTable[pure] = reference;
                     ExtensionTable[pure] = file.Id;
                 }
 
-                if (file.Size == 0) {
-                    continue;
-                }
-
-                var reference = new FileReference(archiveIndex, fileIndex, dataPath);
-                IdTable[file.Id] = reference;
-                if (pure != file.Id) {
-                    IdTable[pure] = reference;
-                }
-
                 if (dataPath.EndsWith(".erep")) {
-                    Replacements.Add(reference.Create<EbonyReplace>());
+                    Replacements[assetId] = reference.Create<EbonyReplace>();
                 }
             }
         }
 
-        AssetId.IdTable = UriTable;
+        AssetId.IdTable = UriTable.ToDictionary(x => x.Key.Value, x => x.Value.DataPath);
     }
 
     public bool TryCreate<T>(in AssetId path, [MaybeNullWhen(false)] out T instance) where T : IAsset, new() {
@@ -86,9 +80,8 @@ public sealed class AssetManager : IDisposable {
             pathActual = path;
         }
 
-        if (IdTable.TryGetValue(pathActual, out var reference)) {
-            var archive = Archives[reference.ArchiveIndex];
-            instance = Create<T>(archive, archive.FileEntries[reference.FileIndex]);
+        if (UriTable.TryGetValue(pathActual, out var reference)) {
+            instance = reference.Create<T>();
             return true;
         }
 
@@ -101,9 +94,8 @@ public sealed class AssetManager : IDisposable {
             pathActual = path;
         }
 
-        if (IdTable.TryGetValue(pathActual, out var reference)) {
-            var archive = Archives[reference.ArchiveIndex];
-            return Create<T>(archive, archive.FileEntries[reference.FileIndex]);
+        if (UriTable.TryGetValue(pathActual, out var reference)) {
+            return reference.Create<T>();
         }
 
         throw new AssetIdNotFoundException(path);
@@ -139,9 +131,8 @@ public sealed class AssetManager : IDisposable {
             pathActual = path;
         }
 
-        if (IdTable.TryGetValue(pathActual, out var reference)) {
-            var archive = Archives[reference.ArchiveIndex];
-            return archive.Read(archive.FileEntries[reference.FileIndex]);
+        if (UriTable.TryGetValue(pathActual, out var reference)) {
+            return reference.Read();
         }
 
         throw new AssetIdNotFoundException(path);
@@ -152,21 +143,21 @@ public sealed class AssetManager : IDisposable {
             pathActual = path;
         }
 
-        if (IdTable.TryGetValue(pathActual, out var reference)) {
-            var archive = Archives[reference.ArchiveIndex];
-            buffer = archive.Read(archive.FileEntries[reference.FileIndex]);
+        if (UriTable.TryGetValue(pathActual, out var reference)) {
+            buffer = reference.Read();
             return true;
-        } else {
-            buffer = null;
-            return false;
         }
+
+        buffer = null;
+        return false;
     }
 
-    public readonly record struct FileReference(int ArchiveIndex, int FileIndex, string DataPath) {
-        public EbonyArchive Archive => Instance.Archives[ArchiveIndex];
-        public EbonyArchiveFile File => Archive.FileEntries[FileIndex];
+    public readonly record struct FileReference(AssetId ArchiveId, AssetId FileId, string DataPath) {
+        public bool Exists => !FileId.IsNull;
+        public EbonyArchive Archive => Instance.Archives[ArchiveId];
+        public EbonyArchiveFile File => Archive.FileEntries[Archive.IdMap[FileId]];
 
-        public (EbonyArchive Archive, EbonyArchiveFile File) Deconstruct() => (Archive, File);
+        public (EbonyArchive Archive, EbonyArchiveFile File) Deconstruct() => Exists ? (Archive, File) : (Archive, default);
 
         public MemoryOwner<byte> Read() => Archive.Read(File);
         public T Create<T>() where T : IAsset, new() => AssetManager.Create<T>(Archive, File);

@@ -10,7 +10,7 @@ public class DebugTestGMDLCommand : EARCCommand {
     public DebugTestGMDLCommand(WitchFlags flags) : base(flags) {
         var target = flags.Positionals.Skip(1).Select(x => x.ToLowerInvariant()).ToHashSet();
 
-        foreach (var (fileId, resource) in AssetManager.Instance.IdTable) {
+        foreach (var (fileId, resource) in AssetManager.Instance.UriTable) {
             if (fileId.Type != TypeIdRegistry.GMDL_GFXBIN) {
                 continue;
             }

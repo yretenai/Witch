@@ -4,7 +4,7 @@ using CommunityToolkit.HighPerformance.Buffers;
 
 namespace Scarlet.Structures;
 
-public static class MemoryHelper {
+public static class ScarletHelpers {
     public static int QueryByteLength<T>(int elementCount) => Unsafe.SizeOf<T>() * elementCount;
 
     public static string GetString(MemoryOwner<byte> buffer, int offset) {
@@ -15,5 +15,21 @@ public static class MemoryHelper {
         }
 
         return Encoding.UTF8.GetString(span[..length]);
+    }
+
+    public static string StripPath(string path) {
+        var index = path.IndexOf("://", StringComparison.Ordinal);
+        if (index == -1) {
+            return path;
+        }
+
+        var prefix = path[..index];
+        var remaining = path[(index + 3)..];
+
+        if (prefix == "data") {
+            return remaining;
+        }
+
+        return prefix + "/" + remaining;
     }
 }

@@ -13,7 +13,7 @@ using Serilog;
 
 namespace Scarlet.Archive;
 
-public readonly record struct EbonyArchive : IDisposable {
+public readonly record struct EbonyArchive : IAsset, IDisposable {
     private const uint MagicValue = 0x46415243; // FARC - File Archive
     private const ulong ChecksumXOR1 = 0xCBF29CE484222325;
     private const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
@@ -24,11 +24,14 @@ public readonly record struct EbonyArchive : IDisposable {
 
     // EARC stands for "Archive", it's used to store files in a compressed format to reduce the size of the game and disk load times.
     // EMEM stands for "Memory", it's used to store virtual PACK files to help with the loading of the game (i assume.)
-    public unsafe EbonyArchive(string path, bool isMem = false) {
+    public unsafe EbonyArchive(AssetId id, string dataPath, string path) {
+        AssetId = id;
+        DataPath = dataPath;
+
         using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive>();
         Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-        if (isMem) { // zero idea why this is encrypted, but it is.
+        if (id.Type.Value is TypeIdRegistry.EMEM) { // zero idea why this is encrypted, but it is.
             Stream.Seek(-1, SeekOrigin.End);
             var encryption = (EbonyArchiveEncryption) Stream.ReadByte();
             Debug.Assert(encryption == EbonyArchiveEncryption.AES, "encryption == EbonyArchiveEncryption.AES");
@@ -70,17 +73,21 @@ public readonly record struct EbonyArchive : IDisposable {
         Stream.ReadExactly(Buffer.Span);
         BlitFileEntries = new BlitStruct<EbonyArchiveFile>(Buffer, (int) header[0].FATOffset, header[0].FileCount);
 
-        if (header[0].VersionMinor < 0) {
-            using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
-            header[0].VersionMinor &= 0x7FFF;
-            var key = header[0].Checksum ^ ChecksumXOR1;
-            if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
-                key ^= ChecksumXOR2;
-            }
 
-            using var fnv = FowlerNollVo.Create((FNV64Basis) key);
-            var blitFileEntries = BlitFileEntries.BlitSpan;
-            for (var i = 0; i < blitFileEntries.Length; i++) {
+        IdMap = new Dictionary<AssetId, int>();
+        var blitFileEntries = BlitFileEntries.BlitSpan;
+        for (var i = 0; i < blitFileEntries.Length; i++) {
+            IdMap[FileEntries[i].Id] = i;
+
+            if (header[0].VersionMinor < 0) {
+                using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
+                header[0].VersionMinor &= 0x7FFF;
+                var key = header[0].Checksum ^ ChecksumXOR1;
+                if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
+                    key ^= ChecksumXOR2;
+                }
+
+                using var fnv = FowlerNollVo.Create((FNV64Basis) key);
                 ref var file = ref blitFileEntries[i];
                 var bytes = MemoryMarshal.Cast<byte, ulong>(blitFileEntries.GetByteSpan(i));
                 if ((file.Flags & EbonyArchiveFileFlags.SkipObfuscation) == 0) {
@@ -109,11 +116,14 @@ public readonly record struct EbonyArchive : IDisposable {
     #endif
     }
 
+    public AssetId AssetId { get; }
     public Stream Stream { get; }
     public MemoryOwner<byte> Buffer { get; }
     public EbonyArchiveHeader Header { get; }
     private BlitStruct<EbonyArchiveFile> BlitFileEntries { get; }
     public Span<EbonyArchiveFile> FileEntries => BlitFileEntries.Span;
+    public Dictionary<AssetId, int> IdMap { get; }
+    public string DataPath { get; init; }
 
     public void Dispose() {
         Stream.Close();

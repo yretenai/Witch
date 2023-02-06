@@ -10,7 +10,11 @@ namespace Witch.Commands;
 public class DebugCodegenTypeCommand : EARCCommand {
     public DebugCodegenTypeCommand(WitchFlags flags) : base(flags) {
         var ids = TypeIdRegistry.IdTable;
-        foreach (var (fileId, resource) in AssetManager.Instance.IdTable) {
+        foreach (var (fileId, resource) in AssetManager.Instance.UriTable) {
+            if (!resource.Exists) {
+                continue;
+            }
+
             var (archive, file) = resource.Deconstruct();
             var dataPath = resource.DataPath;
             var realPath = file.GetPath(archive.Buffer);

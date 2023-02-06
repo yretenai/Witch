@@ -5,14 +5,16 @@ using DragonLib.Hash.Basis;
 namespace Scarlet.Structures;
 
 public readonly record struct TypeId {
-    public uint Value { get; init; }
-
     public TypeId(ulong value) => Value = (uint) (value >> 44);
     public TypeId(uint typeId) => Value = typeId;
     public TypeId(string path) {
         using var fnv = FowlerNollVo.CreateAlternate((FNV64Basis) 0x14650FB0739D0383);
         Value = (uint) (fnv.ComputeHashValue(Encoding.UTF8.GetBytes(path.TrimEnd('@'))) & 0xFFFFF);
     }
+
+    public static TypeId Zero { get; } = new(0);
+    public uint Value { get; init; }
+    public bool IsNull => Value == 0;
 
     public static implicit operator TypeId(uint value) => new() { Value = value };
     public static implicit operator TypeId(AssetId value) => value.Type;

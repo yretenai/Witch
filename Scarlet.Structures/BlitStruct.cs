@@ -28,7 +28,7 @@ public readonly struct BlitStruct<T> : IDisposable where T : unmanaged {
         }
 
         Offset = 0;
-        Count = MemoryHelper.QueryByteLength<T>(elementCount);
+        Count = ScarletHelpers.QueryByteLength<T>(elementCount);
         Buffer = MemoryOwner<byte>.Allocate(Count);
     }
 
@@ -45,7 +45,7 @@ public readonly struct BlitStruct<T> : IDisposable where T : unmanaged {
             throw new ArgumentOutOfRangeException(nameof(elementCount));
         }
 
-        Count = MemoryHelper.QueryByteLength<T>((int) elementCount);
+        Count = ScarletHelpers.QueryByteLength<T>((int) elementCount);
 
         if (Count > buffer.Length - byteSkip) {
             throw new ArgumentOutOfRangeException(nameof(elementCount));
