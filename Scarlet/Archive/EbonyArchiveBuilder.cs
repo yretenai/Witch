@@ -95,7 +95,7 @@ public readonly record struct EbonyArchiveBuilder {
             using var buffer = GetFile(record);
             var nextOffset = dataSize + buffer.Memory.Length.Align((int) header.BlockSize) + header.BlockSize;
 
-            var plainFlags = record.Flags & (EbonyArchiveFileFlags.AutoLoad | EbonyArchiveFileFlags.Compressed | EbonyArchiveFileFlags.Reference | EbonyArchiveFileFlags.Loose | EbonyArchiveFileFlags.Patched | EbonyArchiveFileFlags.Deleted | EbonyArchiveFileFlags.SkipObfuscation);
+            var plainFlags = record.Flags & (EbonyArchiveFileFlags.AutoLoad | EbonyArchiveFileFlags.Reference | EbonyArchiveFileFlags.Loose | EbonyArchiveFileFlags.Patched | EbonyArchiveFileFlags.Deleted | EbonyArchiveFileFlags.SkipObfuscation);
             if (header.VersionMinor < 0) {
                 plainFlags |= EbonyArchiveFileFlags.SkipObfuscation;
             }
