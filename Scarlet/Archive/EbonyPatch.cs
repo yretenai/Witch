@@ -23,7 +23,7 @@ public readonly record struct EbonyPatch : IAsset, IDisposable {
 
         AssetId = assetId;
 
-        if (pack.Length < EbonyArchiveHeader.Size) {
+        if (pack.Length < EbonyArchiveHeader.StructSize) {
             throw new InvalidDataException("File is too small to be a PACK archive.");
         }
 

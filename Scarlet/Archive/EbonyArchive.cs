@@ -14,9 +14,9 @@ using Serilog;
 namespace Scarlet.Archive;
 
 public readonly record struct EbonyArchive : IAsset, IDisposable {
-    private const uint MagicValue = 0x46415243; // FARC - File Archive
-    private const ulong ChecksumXOR1 = 0xCBF29CE484222325;
-    private const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
+    internal const uint MagicValue = 0x46415243; // FARC - File Archive
+    internal const ulong ChecksumXOR1 = 0xCBF29CE484222325;
+    internal const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
     private const uint SeedExpansion = 0x41C64E6D;
     private const uint SeedOffset = 0x3039;
     private static readonly byte[] MemoryKey = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
@@ -24,12 +24,12 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
     // EARC stands for "Archive", it's used to store files in a compressed format to reduce the size of the game and disk load times.
     // EMEM stands for "Memory", it's used to store virtual PACK files to help with the loading of the game (i assume.)
-    public unsafe EbonyArchive(AssetId id, string dataPath, string path) {
+    public unsafe EbonyArchive(AssetId id, string dataPath, Stream stream) {
         AssetId = id;
         DataPath = dataPath;
 
         using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive>();
-        Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        Stream = stream;
 
         if (id.Type.Value is TypeIdRegistry.EMEM) { // zero idea why this is encrypted, but it is.
             Stream.Seek(-1, SeekOrigin.End);
@@ -53,7 +53,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
             Stream = new MemoryStream(decryptor.TransformFinalBlock(block, 0, block.Length));
         }
 
-        if (Stream.Length < EbonyArchiveHeader.Size) {
+        if (Stream.Length < EbonyArchiveHeader.StructSize) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is too small to be an EARC archive.");
@@ -81,7 +81,6 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
             if (header[0].VersionMinor < 0) {
                 using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
-                header[0].VersionMinor &= 0x7FFF;
                 var key = header[0].Checksum ^ ChecksumXOR1;
                 if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
                     key ^= ChecksumXOR2;
@@ -140,7 +139,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         };
 
     public static ulong CalculateHashBlack(Stream stream, long dataSize) {
-        if (dataSize < EbonyArchiveHeader.Size) {
+        if (dataSize < EbonyArchiveHeader.StructSize) {
             return 0;
         }
 
@@ -174,10 +173,10 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
         var position = stream.Position;
 
-        stream.Position = EbonyArchiveHeader.Size;
+        stream.Position = EbonyArchiveHeader.StructSize;
 
         try {
-            var size = dataSize - EbonyArchiveHeader.Size;
+            var size = dataSize - EbonyArchiveHeader.StructSize;
 
             // var blocks = (buffer.Length >> 4) - 1;
 
@@ -222,6 +221,10 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
     }
 
     public unsafe MemoryOwner<byte> Read(in EbonyArchiveFile file) {
+        if (file.Size == 0) {
+            return MemoryOwner<byte>.Empty;
+        }
+
         using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive.Read>();
         Stream.Position = file.DataOffset;
 

@@ -30,7 +30,7 @@ public sealed class AssetManager : IDisposable {
         var isEmem = file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase);
         var name = $"data://{Path.GetFileNameWithoutExtension(file)}.{(isEmem ? "emem" : "ebex")}";
         var id = new AssetId(name,  isEmem ? TypeIdRegistry.EMEM : TypeIdRegistry.EARC);
-        var archive = new EbonyArchive(id, name, file);
+        var archive = new EbonyArchive(id, name, new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
         Archives[id] = archive;
     }
 

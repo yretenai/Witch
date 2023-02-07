@@ -5,7 +5,7 @@ namespace Scarlet.Structures.Archive;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x40)]
 public record struct EbonyArchiveHeader {
-    public static int Size { get; } = Unsafe.SizeOf<EbonyArchiveHeader>();
+    public static int StructSize { get; } = Unsafe.SizeOf<EbonyArchiveHeader>();
 
     public uint Magic;
     public short VersionMajor;
