@@ -5,7 +5,7 @@ using Scarlet.Structures;
 
 namespace Witch.Commands;
 
-[Command(typeof(WitchFlags), "rebuild-1", "", "debug", true)]
+[Command(typeof(WitchFlags), "rebuild", "", "debug", true)]
 public class DebugRebuildEARCCommand : EARCCommand {
     public DebugRebuildEARCCommand(WitchFlags flags) : base(flags) {
         var testEarc = AssetManager.Instance.Archives[new AssetId("data://c000.ebex", TypeIdRegistry.EARC)];

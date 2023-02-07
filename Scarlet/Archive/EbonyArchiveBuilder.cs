@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using CommunityToolkit.HighPerformance.Buffers;
 using DragonLib;
+using Scarlet.Exceptions;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 using Serilog;
@@ -44,7 +45,11 @@ public readonly record struct EbonyArchiveBuilder {
 
     private IMemoryOwner<byte> GetFile(RebuildRecord file) {
         var entry = FileLookup[file.AssetId];
-        return entry.DataDelegate != null ? entry.DataDelegate(file) : Archive.Read(Archive.FileEntries[Archive.IdMap[entry.AssetId]]);
+        if (entry.DataDelegate != null) {
+            return entry.DataDelegate(file);
+        }
+
+        return Archive.IdMap.TryGetValue(entry.AssetId, out var value) ? Archive.Read(Archive.FileEntries[value]) : MemoryOwner<byte>.Empty;
     }
 
     public void AddOrReplaceFile(RebuildRecord entry) {
@@ -53,6 +58,14 @@ public readonly record struct EbonyArchiveBuilder {
         }
 
         FileLookup[entry.AssetId] = entry;
+    }
+
+    public void ReplaceFile(AssetId assetId, DataDelegate @delegate) {
+        if (!FileLookup.ContainsKey(assetId)) {
+            throw new AssetIdNotFoundException();
+        }
+
+        FileLookup[assetId] = FileLookup[assetId] with { DataDelegate = @delegate };
     }
 
     public void Build(Stream output) {
@@ -90,7 +103,7 @@ public readonly record struct EbonyArchiveBuilder {
         var dataSize = (long) dataOffset;
         var fileSizeReal = dataSize;
 
-        foreach (var record in Records) {
+        foreach (var record in Records.OrderBy(x => x.AssetId.Type.Value is TypeIdRegistry.EREP)) {
             Log.Information("Writing {Record}", record.DataPath);
             using var buffer = GetFile(record);
             var nextOffset = dataSize + buffer.Memory.Length.Align((int) header.BlockSize) + header.BlockSize;

@@ -17,24 +17,16 @@ public class ExtractCommand : EARCCommand {
 
         // pre build directory structure
         foreach (var reference in AssetManager.Instance.UriTable.Values.Where(reference => reference.Exists)) {
-            var (archive, file) = reference.Deconstruct();
-            if ((reference.File.Flags & EbonyArchiveFileFlags.Reference) != 0) {
-                var path = ScarletHelpers.StripPath(reference.DataPath);
-                path = path.Trim('/', '\\');
-                var outputPath = target + '/' + path;
-                outputPath.EnsureDirectoryExists();
-            } else {
-                var path = file.GetPath(archive.Buffer);
-                if (path.StartsWith("$archives")) {
-                    path = path[10..];
-                }
-
-                path = path.Trim('/', '\\');
-                var outputPath = target + '/' + path;
-                outputPath.EnsureDirectoryExists();
+            var path = ScarletHelpers.StripPath(reference.DataPath);
+            if (path.StartsWith("$archives")) {
+                path = path[10..];
             }
+            path = path.Trim('/', '\\');
+            var outputPath = target + '/' + path;
+            outputPath.EnsureDirectoryExists();
         }
 
+        var archiveLookup = new Dictionary<string, string>();
         // export real files
         foreach (var reference in AssetManager.Instance.UriTable.Values.Where(reference => reference.Exists)) {
             var (archive, file) = reference.Deconstruct();
@@ -55,13 +47,14 @@ public class ExtractCommand : EARCCommand {
                 Debugger.Break();
             }
 
-            var path = file.GetPath(archive.Buffer);
+            var path = ScarletHelpers.StripPath(reference.DataPath);
             if (path.StartsWith("$archives")) {
                 path = path[10..];
             }
 
-            path = path.Trim('/', '\\');
+            path = path.Trim('/', '\\', '@');
             var outputPath = target + '/' + path;
+            archiveLookup[file.GetPath(archive.Buffer)] = outputPath;
 
             Log.Information("Extracting {File}", path);
 
@@ -79,14 +72,16 @@ public class ExtractCommand : EARCCommand {
             }
 
             var archivePath = file.GetPath(archive.Buffer);
-            var linkTarget = archivePath.StartsWith("$archives") ? archives + '/' + archivePath[10..] : target + '/' + archivePath;
-
-            if (!File.Exists(linkTarget)) {
+            string? linkTarget;
+            if (archivePath.StartsWith("$archives")) {
+                linkTarget = archives + archivePath[10..];
+            } else if (!archiveLookup.TryGetValue(archivePath, out linkTarget)) {
                 Debugger.Break();
+                continue;
             }
 
             var path = ScarletHelpers.StripPath(reference.DataPath);
-            path = path.Trim('/', '\\');
+            path = path.Trim('/', '\\', '@');
             var outputPath = target + '/' + path;
             Log.Information("Linking {File} to {Target}", path, archivePath);
             File.CreateSymbolicLink(outputPath, linkTarget);

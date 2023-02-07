@@ -2,6 +2,7 @@
 
 [Flags]
 public enum EbonyArchiveFileFlags : uint {
+    None = 0,
     AutoLoad = 1,
     Compressed = 2,
     Reference = 4,

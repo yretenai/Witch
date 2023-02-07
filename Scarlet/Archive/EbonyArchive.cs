@@ -121,7 +121,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
     public EbonyArchiveHeader Header { get; }
     private BlitStruct<EbonyArchiveFile> BlitFileEntries { get; }
     public Span<EbonyArchiveFile> FileEntries => BlitFileEntries.Span;
-    public Dictionary<AssetId, int> IdMap { get; }
+    public Dictionary<AssetId, int> IdMap { get; } = new();
     public string DataPath { get; init; }
 
     public void Dispose() {
