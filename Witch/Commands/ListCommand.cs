@@ -8,7 +8,7 @@ namespace Witch.Commands;
 [Command(typeof(WitchFlags), "list", "Lists the files in EARC")]
 public class ListCommand : EARCCommand {
     public ListCommand(WitchFlags flags) : base(flags) {
-        foreach (var (fileId, resource) in AssetManager.Instance.UriTable) {
+        foreach (var (fileId, resource) in AssetManager.Instance.PureUriTable) {
             if (!resource.Exists) {
                 continue;
             }

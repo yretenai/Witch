@@ -3,7 +3,7 @@ using Scarlet;
 using Scarlet.Archive;
 using Scarlet.Structures;
 
-namespace Witch.Commands;
+namespace Witch.Commands.Debug;
 
 [Command(typeof(WitchFlags), "rebuild", "", "debug", true)]
 public class DebugRebuildEARCCommand : EARCCommand {

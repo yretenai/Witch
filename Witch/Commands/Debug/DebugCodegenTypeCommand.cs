@@ -4,13 +4,13 @@ using Scarlet;
 using Scarlet.Structures;
 using Serilog;
 
-namespace Witch.Commands;
+namespace Witch.Commands.Debug;
 
 [Command(typeof(WitchFlags), "codegen-typeid", "", "debug", true)]
 public class DebugCodegenTypeCommand : EARCCommand {
     public DebugCodegenTypeCommand(WitchFlags flags) : base(flags) {
         var ids = TypeIdRegistry.IdTable;
-        foreach (var (fileId, resource) in AssetManager.Instance.UriTable) {
+        foreach (var (fileId, resource) in AssetManager.Instance.PureUriTable) {
             if (!resource.Exists) {
                 continue;
             }

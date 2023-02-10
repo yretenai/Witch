@@ -3,14 +3,14 @@ using Scarlet;
 using Scarlet.Gfx;
 using Scarlet.Structures;
 
-namespace Witch.Commands;
+namespace Witch.Commands.Debug;
 
 [Command(typeof(WitchFlags), "gmdl", "", "debug", true)]
 public class DebugTestGMDLCommand : EARCCommand {
     public DebugTestGMDLCommand(WitchFlags flags) : base(flags) {
         var target = flags.Positionals.Skip(1).Select(x => x.ToLowerInvariant()).ToHashSet();
 
-        foreach (var (fileId, resource) in AssetManager.Instance.UriTable) {
+        foreach (var (fileId, resource) in AssetManager.Instance.PureUriTable) {
             if (fileId.Type != TypeIdRegistry.GMDL_GFXBIN) {
                 continue;
             }

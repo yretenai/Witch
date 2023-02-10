@@ -38,7 +38,7 @@ public readonly record struct AssetId {
     public static implicit operator AssetId(ulong value) => new(value: value);
     public static implicit operator AssetId(TypeId value) => new(value: (ulong) value.Value << 44);
     public static implicit operator ulong(AssetId id) => id.Value;
-    public override string ToString() => IdTable.TryGetValue(this, out var result) || IdTable.TryGetValue(Path, out result) ? result : Value.ToString("X16");
+    public override string ToString() => IdTable.TryGetValue(this, out var result) || IdTable.TryGetValue(Path, out result) ? (result + $"{{{Type}}}") : (Path.ToString("X11") + $".{Type}");
     public bool Equals(AssetId? other) => other?.Value == Value;
     public override int GetHashCode() => Value.GetHashCode();
 }

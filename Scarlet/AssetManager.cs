@@ -18,6 +18,7 @@ public sealed class AssetManager : IDisposable {
     public ConcurrentDictionary<AssetId, EbonyArchive> Archives { get; } = new();
     public ConcurrentDictionary<AssetId, EbonyReplace> Replacements { get; } = new();
     public Dictionary<AssetId, FileReference> UriTable { get; } = new();
+    public Dictionary<AssetId, FileReference> PureUriTable { get; } = new();
     public Dictionary<ulong, ulong> ExtensionTable { get; } = new();
 
     public void Dispose() {
@@ -61,6 +62,7 @@ public sealed class AssetManager : IDisposable {
                 var pure = new AssetId(dataPath);
                 var reference = new FileReference(assetId, file.Id, dataPath);
                 UriTable[file.Id] = reference;
+                PureUriTable[file.Id] = reference;
                 if (pure != file.Id) {
                     UriTable[pure] = reference;
                     ExtensionTable[pure] = file.Id;
@@ -161,6 +163,9 @@ public sealed class AssetManager : IDisposable {
 
         public MemoryOwner<byte> Read() => Archive.Read(File);
         public T Create<T>() where T : IAsset, new() => AssetManager.Create<T>(Archive, File);
+
+        public object GetPath() => File.GetPath(Archive.Buffer);
+        public object GetDataPath() => File.GetDataPath(Archive.Buffer);
     }
 
     public static void DetectGame(string installDir) {

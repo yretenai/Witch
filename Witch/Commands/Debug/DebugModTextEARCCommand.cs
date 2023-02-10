@@ -4,11 +4,11 @@ using Scarlet.Archive;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 
-namespace Witch.Commands;
+namespace Witch.Commands.Debug;
 
-[Command(typeof(WitchFlags), "mod", "", "debug", true)]
-public class DebugModEARCCommand : EARCCommand {
-    public DebugModEARCCommand(WitchFlags flags) : base(flags) {
+[Command(typeof(WitchFlags), "mod-text", "", "debug", true)]
+public class DebugModTextEARCCommand : EARCCommand {
+    public DebugModTextEARCCommand(WitchFlags flags) : base(flags) {
         var testEarc = AssetManager.Instance.Archives[new AssetId("data://c000.ebex", TypeIdRegistry.EARC)];
         var builder = new EbonyArchiveBuilder(testEarc);
 
@@ -18,19 +18,17 @@ public class DebugModEARCCommand : EARCCommand {
         var erepTargetId = new AssetId("data://c000.ebex", TypeIdRegistry.EARC);
 
         var modMessageId = new AssetId("data://mods/text_us_9c9439df.parambin", TypeIdRegistry.PARAMBIN);
+        AssetId.IdTable[modMessageId] = "data://mods/text_us_9c9439df.parambin";
         var originalMessageId = new AssetId("data://param/bin/text_us_9c9439df.parambin", TypeIdRegistry.PARAMBIN);
-        var erepBuilder = new EbonyReplaceBuilder(AssetManager.Instance.Replacements[erepTargetId]) {
-            Replacements = {
-                [originalMessageId] = modMessageId,
-            },
-        };
+        var erepBuilder = new EbonyReplaceBuilder(AssetManager.Instance.Replacements[erepTargetId]);
+        erepBuilder.Replace(originalMessageId, modMessageId);
         builder.ReplaceFile(erepId, erepBuilder.Build);
 
         using var output = new FileStream("c000.earc", FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
         builder.Build(output);
 
         var modEarc = new EbonyArchiveBuilder();
-        modEarc.AddOrReplaceFile(new EbonyArchiveBuilder.RebuildRecord(modMessageId, EbonyArchiveFileFlags.None, "param/bin/text_us_9c9439df.parambin", "data://param/bin/text_us_9c9439df.parambin") {
+        modEarc.AddOrReplaceFile(new EbonyArchiveBuilder.RebuildRecord(modMessageId, EbonyArchiveFileFlags.None, "mods/text_us_9c9439df.parambin", "data://mods/text_us_9c9439df.parambin") {
             DataDelegate = (_ => {
                                 var msg = AssetManager.Instance.Read(originalMessageId);
                                 var index = msg.Span.IndexOf("BENCHMARK"u8);

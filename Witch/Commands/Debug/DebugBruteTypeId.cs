@@ -2,7 +2,7 @@
 using Scarlet.Structures;
 using Serilog;
 
-namespace Witch.Commands;
+namespace Witch.Commands.Debug;
 
 [Command(typeof(CommandLineFlags), "brute-typeid", "", "debug", true)]
 public class DebugBruteTypeId {

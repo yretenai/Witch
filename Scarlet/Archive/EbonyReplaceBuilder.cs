@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Exceptions;
 using Scarlet.Structures;
+using Serilog;
 
 namespace Scarlet.Archive;
 
@@ -33,5 +34,16 @@ public readonly record struct EbonyReplaceBuilder {
         return buffer;
     }
 
-    public Dictionary<AssetId, AssetId> Replacements { get; init; }
+    private Dictionary<AssetId, AssetId> Replacements { get; }
+
+    public void Replace(AssetId source, AssetId target) {
+        Log.Information("Replacing {Source} with {Target}", source, target);
+        Replacements[source] = target;
+
+        var rebounces = Replacements.Where(x => x.Value == source).Select(x => x.Key).ToArray();
+        foreach (var rebounce in rebounces) {
+            Log.Information("Bouncing {Source} to {Target}", rebounce, target);
+            Replacements[rebounce] = target;
+        }
+    }
 }

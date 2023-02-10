@@ -13,6 +13,7 @@ mono_crash.*
 
 # Build results
 [Dd]ebug/
+!Witch/Commands/Debug
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/

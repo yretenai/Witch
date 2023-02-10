@@ -14,7 +14,7 @@ public class ExtractCommand : EARCCommand {
         var archives = Path.Combine(flags.InstallDir, "datas");
 
         Log.Information("Building directory structure...");
-        foreach (var reference in AssetManager.Instance.UriTable.Values.Where(reference => reference.Exists).Select(x => Path.GetDirectoryName(ScarletHelpers.StripPath(x.DataPath))!).Distinct()) {
+        foreach (var reference in AssetManager.Instance.PureUriTable.Values.Where(reference => reference.Exists).Select(x => Path.GetDirectoryName(ScarletHelpers.StripPath(x.DataPath))!).Distinct()) {
             var path = reference;
             if (path == "$archives") {
                 continue;
@@ -31,7 +31,7 @@ public class ExtractCommand : EARCCommand {
             }
         }
 
-        foreach (var reference in AssetManager.Instance.UriTable.Values.Where(reference => reference.Exists).Select(x => Path.GetDirectoryName(x.File.GetPath(x.Archive.Buffer))!).Distinct()) {
+        foreach (var reference in AssetManager.Instance.PureUriTable.Values.Where(reference => reference.Exists).Select(x => Path.GetDirectoryName(x.File.GetPath(x.Archive.Buffer))!).Distinct()) {
             var path = reference;
             if (path == "$archives") {
                 continue;
@@ -48,9 +48,9 @@ public class ExtractCommand : EARCCommand {
             }
         }
 
-        var archiveLookup = new Dictionary<string, string>(AssetManager.Instance.UriTable.Count);
+        var archiveLookup = new Dictionary<string, string>(AssetManager.Instance.PureUriTable.Count);
         Log.Information("Extracting...");
-        foreach (var reference in AssetManager.Instance.UriTable.Values.Where(reference => reference.Exists)) {
+        foreach (var reference in AssetManager.Instance.PureUriTable.Values.Where(reference => reference.Exists)) {
             var (archive, file) = reference.Deconstruct();
 
             if (reference.File.Size == 0 || (reference.File.Flags & EbonyArchiveFileFlags.Reference) != 0) {
@@ -86,7 +86,7 @@ public class ExtractCommand : EARCCommand {
         }
 
         Log.Information("Linking...");
-        foreach (var reference in AssetManager.Instance.UriTable.Values.Where(reference => reference.Exists)) {
+        foreach (var reference in AssetManager.Instance.PureUriTable.Values.Where(reference => reference.Exists)) {
             var (archive, file) = reference.Deconstruct();
 
             if ((reference.File.Flags & EbonyArchiveFileFlags.Reference) == 0) {
