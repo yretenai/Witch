@@ -13,7 +13,7 @@ namespace Scarlet;
 public sealed class AssetManager : IDisposable {
     public static AssetManager Instance { get; } = new();
 
-    public static EbonyGame Game { get; set; } = EbonyGame.Witch;
+    public static EbonyGame Game { get; set; } = EbonyGame.Scarlet;
 
     public ConcurrentDictionary<AssetId, EbonyArchive> Archives { get; } = new();
     public ConcurrentDictionary<AssetId, EbonyReplace> Replacements { get; } = new();
@@ -177,7 +177,7 @@ public sealed class AssetManager : IDisposable {
         }
 
         if (exe.Contains("forspoken")) {
-            Game = EbonyGame.Witch;
+            Game = EbonyGame.Scarlet;
             return;
         }
 

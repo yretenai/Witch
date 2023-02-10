@@ -14,13 +14,13 @@ using Serilog;
 namespace Scarlet.Archive;
 
 public readonly record struct EbonyArchive : IAsset, IDisposable {
-    internal const uint MagicValue = 0x46415243; // FARC - File Archive
-    internal const ulong ChecksumXOR1 = 0xCBF29CE484222325;
-    internal const ulong ChecksumXOR2 = 0x8B265046EDA33E8A;
-    private const uint SeedExpansion = 0x41C64E6D;
-    private const uint SeedOffset = 0x3039;
-    private static readonly byte[] MemoryKey = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
-    private static readonly byte[] ArchiveKey = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
+    internal const uint MAGIC = 0x46415243; // FARC - File Archive
+    internal const ulong CSUM_XOR1 = 0xCBF29CE484222325;
+    internal const ulong CSUM_XOR2 = 0x8B265046EDA33E8A;
+    private const uint SEED_EXPANSION = 0x41C64E6D;
+    private const uint SEED_OFFSET = 0x3039;
+    private static readonly byte[] EMEM_KEY = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
+    private static readonly byte[] EARC_KEY = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
 
     // EARC stands for "Archive", it's used to store files in a compressed format to reduce the size of the game and disk load times.
     // EMEM stands for "Memory", it's used to store virtual PACK files to help with the loading of the game (i assume.)
@@ -37,7 +37,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
             Debug.Assert(encryption == EbonyArchiveEncryption.AES, "encryption == EbonyArchiveEncryption.AES");
 
             using var aes = Aes.Create();
-            aes.Key = MemoryKey;
+            aes.Key = EMEM_KEY;
             var iv = new byte[16];
             Stream.Seek(-33, SeekOrigin.End);
             Stream.ReadExactly(iv);
@@ -62,7 +62,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         Span<EbonyArchiveHeader> header = stackalloc EbonyArchiveHeader[1];
         Stream.ReadExactly(header.AsBytes());
 
-        if (header[0].Magic != MagicValue) {
+        if (header[0].Magic != MAGIC) {
             Stream.Close();
             Stream.Dispose();
             throw new InvalidDataException("File is not an EARC archive.");
@@ -81,9 +81,9 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
             if (header[0].VersionMinor < 0) {
                 using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
-                var key = header[0].Checksum ^ ChecksumXOR1;
+                var key = header[0].Checksum ^ CSUM_XOR1;
                 if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
-                    key ^= ChecksumXOR2;
+                    key ^= CSUM_XOR2;
                 }
 
                 using var fnv = FowlerNollVo.Create((FNV64Basis) key);
@@ -134,7 +134,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
     public static ulong CalculateHash(Stream stream, long dataSize, bool force = false) =>
         AssetManager.Game switch {
             EbonyGame.Black => CalculateHashBlack(stream, dataSize),
-            EbonyGame.Witch => CalculateHashWitch(stream, dataSize, force),
+            EbonyGame.Scarlet => CalculateHashScarlet(stream, dataSize, force),
             _               => 0,
         };
 
@@ -159,7 +159,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         }
     }
 
-    public static ulong CalculateHashWitch(Stream stream, long dataSize, bool force = false) {
+    public static ulong CalculateHashScarlet(Stream stream, long dataSize, bool force = false) {
         if (dataSize > int.MaxValue && !force) {
             return 0;
         }
@@ -228,7 +228,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive.Read>();
         Stream.Position = file.DataOffset;
 
-        var expandedKey = file.Seed == 0 ? 0ul : ((ulong) file.Seed * SeedExpansion + SeedOffset) * SeedExpansion + SeedOffset;
+        var expandedKey = file.Seed == 0 ? 0ul : ((ulong) file.Seed * SEED_EXPANSION + SEED_OFFSET) * SEED_EXPANSION + SEED_OFFSET;
         Debug.Assert(expandedKey == 0, "expandedKey == 0"); // note: validate if xoring with expandedKey is the same.
 
         MemoryOwner<byte> buffer;
@@ -241,7 +241,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
             Stream.Position = file.DataOffset + file.CompressedSize - 33;
 
             using var aes = Aes.Create();
-            aes.Key = ArchiveKey;
+            aes.Key = EARC_KEY;
 
             var iv = new byte[16];
             var iv64 = MemoryMarshal.Cast<byte, ulong>(iv);

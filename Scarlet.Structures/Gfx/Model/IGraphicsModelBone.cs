@@ -5,7 +5,7 @@ public interface IGraphicsModelBone {
     public uint LOD { get; set; }
 }
 
-public record struct GraphicsModelBone_Witch : IGraphicsModelBone {
+public record struct GraphicsModelBone_Scarlet : IGraphicsModelBone {
     public string Name { get; set; }
     public uint LOD { get; set; }
     public uint Index { get; set; }

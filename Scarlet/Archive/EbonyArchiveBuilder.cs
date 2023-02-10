@@ -79,7 +79,7 @@ public readonly record struct EbonyArchiveBuilder {
         var prebuild = MemoryOwner<byte>.Allocate((int) dataOffset);
 
         var header = new EbonyArchiveHeader {
-            Magic = EbonyArchive.MagicValue,
+            Magic = EbonyArchive.MAGIC,
             VersionMajor = Header.VersionMajor,
             VersionMinor = Header.VersionMinor,
             FileCount = (uint) Records.Count,

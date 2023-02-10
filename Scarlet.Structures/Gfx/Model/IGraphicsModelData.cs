@@ -7,7 +7,7 @@ public interface IGraphicsModelData {
     public IGraphicsModelBone[] Bones { get; set; }
 }
 
-public record struct GraphicsModelData_Witch : IGraphicsModelData {
+public record struct GraphicsModelData_Scarlet : IGraphicsModelData {
     public AABB BoundingBox { get; set; }
-    [MessagePackRedirect<GraphicsModelBone_Witch[]>] public IGraphicsModelBone[] Bones { get; set; }
+    [MessagePackRedirect<GraphicsModelBone_Scarlet[]>] public IGraphicsModelBone[] Bones { get; set; }
 }

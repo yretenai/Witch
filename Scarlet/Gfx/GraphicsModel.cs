@@ -19,9 +19,9 @@ public readonly record struct GraphicsModel : IAsset {
         Header = msgPack.Read<GraphicsBinaryHeader>();
 
         Data = Header.Version switch {
-                   GraphicsBinaryHeader.WitchVersion        => msgPack.Read<GraphicsModelData_Witch>()!,
-                   GraphicsBinaryHeader.BlackVersion        => throw new NotImplementedException(),
-                   >= GraphicsBinaryHeader.BlackDemoVersion => throw new NotImplementedException(),
+                   GraphicsBinaryHeader.SCARLET_VERSION        => msgPack.Read<GraphicsModelData_Scarlet>()!,
+                   GraphicsBinaryHeader.BLACK_VERSION        => throw new NotImplementedException(),
+                   >= GraphicsBinaryHeader.BLACK_DEMO_VERSION => throw new NotImplementedException(),
                    _                                        => throw new NotSupportedException($"gmdl version {Header.Version} is not supported!"),
                };
     }

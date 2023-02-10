@@ -9,7 +9,7 @@ namespace Scarlet.Archive;
 
 // PACK files are basically just an empty EbonyArchive with only IDs.
 public readonly record struct EbonyPatch : IAsset, IDisposable {
-    private const uint MagicValue = 0x5041434B; // PACK
+    private const uint MAGIC = 0x5041434B; // PACK
 
     public EbonyPatch() {
         Buffer = MemoryOwner<byte>.Empty;
@@ -28,7 +28,7 @@ public readonly record struct EbonyPatch : IAsset, IDisposable {
         }
 
         Header = MemoryMarshal.Read<EbonyArchiveHeader>(pack.Span);
-        if (Header.Magic != MagicValue) {
+        if (Header.Magic != MAGIC) {
             throw new InvalidDataException("File is not a PACK archive.");
         }
 

@@ -9,5 +9,5 @@ public enum EbonyGame {
     /// <summary>
     /// FORSPOKEN
     /// </summary>
-    Witch,
+    Scarlet,
 }
