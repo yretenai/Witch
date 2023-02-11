@@ -100,7 +100,12 @@ public class MessagePackBuffer {
         return dictionary;
     }
 
-    public MessagePackElement Read() => MessagePackValue.ReadValue(typeof(MessagePackElement), Buffer, ref Unsafe.AsRef(Offset));
+    public MessagePackElement Read() {
+        var offset = Offset;
+        var value = MessagePackValue.ReadValue(typeof(MessagePackElement), Buffer, ref offset);
+        Offset = offset;
+        return value;
+    }
 }
 
 public static class MessagePackValue {

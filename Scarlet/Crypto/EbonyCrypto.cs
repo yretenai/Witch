@@ -27,11 +27,11 @@ public static class EbonyCrypto {
     public static Stream DecryptAES(Stream data, byte[] key) {
         using var aes = Aes.Create();
         aes.Key = key;
-        var iv = new Span<EbonyCryptoAES>(ref Unsafe.AsRef(new EbonyCryptoAES()));
+        Span<EbonyCryptoAES> iv = stackalloc EbonyCryptoAES[1];
         var ivb = iv.AsBytes();
         data.Seek(-(ivb.Length + 1), SeekOrigin.End);
         data.ReadExactly(ivb);
-        aes.IV = iv[0].Key.ToArray();
+        aes.IV = iv[0].IV.ToArray();
         aes.Mode = CipherMode.CBC;
         aes.Padding = PaddingMode.None;
 
@@ -66,13 +66,13 @@ public static class EbonyCrypto {
         using var aes = Aes.Create();
         aes.Key = key;
         var iv = MemoryMarshal.Read<EbonyCryptoAES>(data.Span[^(Unsafe.SizeOf<EbonyCryptoAES>() + 1)..]);
-        aes.IV = iv.Key.ToArray();
+        aes.IV = iv.IV.ToArray();
         aes.Mode = CipherMode.CBC;
         aes.Padding = PaddingMode.None;
 
         var block = MemoryOwner<byte>.Allocate(data.Length - (Unsafe.SizeOf<EbonyCryptoAES>() + 1));
         try {
-            aes.DecryptCbc(data.Span[..block.Length], iv.Key, PaddingMode.None).CopyTo(block.Span);
+            aes.DecryptCbc(data.Span[..block.Length], iv.IV, PaddingMode.None).CopyTo(block.Span);
             return block;
         } catch {
             block.Dispose();

@@ -11,5 +11,5 @@ public record struct EbonyCryptoAES {
     public ulong Zero;
     public ulong Zero2;
 
-    public Span<byte> Key => new Span<EbonyCryptoAES>(ref Unsafe.AsRef(this)).AsBytes()[..16];
+    public Span<byte> IV => new Span<EbonyCryptoAES>(ref Unsafe.AsRef(this)).AsBytes()[..16];
 }
