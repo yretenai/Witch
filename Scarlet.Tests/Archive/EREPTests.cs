@@ -2,7 +2,7 @@
 using Scarlet.Archive;
 using Scarlet.Structures;
 
-namespace Scarlet.Tests;
+namespace Scarlet.Tests.Archive;
 
 public class EREPTests {
     [Fact]
