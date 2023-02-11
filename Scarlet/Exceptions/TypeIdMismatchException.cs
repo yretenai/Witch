@@ -1,6 +1,4 @@
-﻿using Scarlet.Structures;
-
-namespace Scarlet.Exceptions;
+﻿namespace Scarlet.Exceptions;
 
 public sealed class TypeIdMismatchException : Exception {
     public TypeIdMismatchException(string message, TypeId providedTypeId, TypeId expectedTypeId) : base(message) {

@@ -1,10 +1,8 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
 using Scarlet.Exceptions;
-using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 using Serilog;
 

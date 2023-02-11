@@ -33,18 +33,14 @@ public readonly struct BlitStruct<T> : IDisposable where T : unmanaged {
     }
 
     public BlitStruct(MemoryOwner<byte> buffer, int byteSkip, uint elementCount) {
-        if (buffer.Length - byteSkip < Unsafe.SizeOf<T>()) {
+        if (buffer.Length - byteSkip < Unsafe.SizeOf<T>() && elementCount > 0) {
             throw new ArgumentOutOfRangeException(nameof(buffer));
         }
 
         if (byteSkip > buffer.Length) {
             throw new ArgumentOutOfRangeException(nameof(byteSkip));
         }
-
-        if (elementCount <= 0) {
-            throw new ArgumentOutOfRangeException(nameof(elementCount));
-        }
-
+        
         Count = ScarletHelpers.QueryByteLength<T>((int) elementCount);
 
         if (Count > buffer.Length - byteSkip) {

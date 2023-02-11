@@ -1,8 +1,4 @@
-﻿using System.Buffers;
-using System.Buffers.Binary;
-using CommunityToolkit.HighPerformance.Buffers;
-using Scarlet.Exceptions;
-using Scarlet.Structures;
+﻿using System.Buffers.Binary;
 using Serilog;
 
 namespace Scarlet.Archive;

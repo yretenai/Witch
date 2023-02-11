@@ -1,6 +1,4 @@
-﻿using Scarlet.Structures;
-
-namespace Scarlet.Exceptions;
+﻿namespace Scarlet.Exceptions;
 
 public sealed class AssetIdNotFoundException : Exception {
     public AssetIdNotFoundException(string message, Exception innerException, AssetId assetId) : base(message, innerException) => AssetId = assetId;

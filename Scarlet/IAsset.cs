@@ -1,6 +1,4 @@
-﻿using Scarlet.Structures;
-
-namespace Scarlet;
+﻿namespace Scarlet;
 
 public interface IAsset {
     public AssetId AssetId { get; }

@@ -1,13 +1,9 @@
-﻿using System.Diagnostics;
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using CommunityToolkit.HighPerformance.Buffers;
-using DragonLib;
 using DragonLib.Hash;
 using DragonLib.Hash.Basis;
 using K4os.Compression.LZ4.Streams;
-using Scarlet.Structures;
 using Scarlet.Structures.Archive;
 using Serilog;
 

@@ -7,6 +7,7 @@ namespace Scarlet.Structures;
 public readonly record struct AssetId {
     public AssetId(ulong value) => Value = value;
     public AssetId(uint typeId, ulong path) => Value = ((ulong) typeId << 44) | (path & 0xFFFFFFFFFFF);
+    public AssetId(uint typeId) => Value = (ulong) typeId << 44;
     public AssetId(string path) : this(path, System.IO.Path.GetExtension(path)[1..]) { }
 
     public AssetId(string path, string ext) {

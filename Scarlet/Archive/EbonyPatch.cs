@@ -1,8 +1,4 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
-using CommunityToolkit.HighPerformance.Buffers;
-using Scarlet.Exceptions;
-using Scarlet.Structures;
+﻿using System.Runtime.InteropServices;
 using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
@@ -18,7 +14,7 @@ public readonly record struct EbonyPatch : IAsset, IDisposable {
 
     public EbonyPatch(AssetId assetId, MemoryOwner<byte> pack) {
         if (assetId.Type.Value is not TypeIdRegistry.EARC) {
-            throw new TypeIdMismatchException(assetId, AssetId);
+            throw new TypeIdMismatchException(assetId, TypeIdRegistry.EARC);
         }
 
         AssetId = assetId;

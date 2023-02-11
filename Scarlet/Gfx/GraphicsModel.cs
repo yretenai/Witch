@@ -1,7 +1,4 @@
-﻿using System.Buffers;
-using Scarlet.Exceptions;
-using Scarlet.Structures;
-using Scarlet.Structures.Gfx.Model;
+﻿using Scarlet.Structures.Gfx.Model;
 
 namespace Scarlet.Gfx;
 

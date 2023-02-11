@@ -1,7 +1,4 @@
-﻿using CommunityToolkit.HighPerformance.Buffers;
-using Scarlet.Exceptions;
-using Scarlet.Structures;
-using Scarlet.Structures.Archive;
+﻿using Scarlet.Structures.Archive;
 
 namespace Scarlet.Archive;
 
@@ -12,7 +9,7 @@ public readonly record struct EbonyReplace : IAsset {
 
     public EbonyReplace(AssetId assetId, MemoryOwner<byte> data) {
         if (assetId.Type.Value is not TypeIdRegistry.EREP) {
-            throw new TypeIdMismatchException(assetId, AssetId);
+            throw new TypeIdMismatchException(assetId, TypeIdRegistry.EREP);
         }
 
         AssetId = assetId;

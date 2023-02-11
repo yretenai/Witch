@@ -1,16 +1,14 @@
-﻿using System.Collections;
-using System.Diagnostics;
-using Serilog;
+﻿using Serilog;
 
 namespace Scarlet;
 
 public interface IPerformanceCounter {
-    public static Hashtable Counters { get; } = new();
+    public static Dictionary<Type, IPerformanceCounter> Counters { get; } = new();
     void Print();
 
     public static void PrintAll() {
     #if DEBUG
-        foreach (IPerformanceCounter counter in Counters.Values) {
+        foreach (var counter in Counters.Values) {
             counter.Print();
         }
     #endif
