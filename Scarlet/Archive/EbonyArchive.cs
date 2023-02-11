@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using DragonLib.Hash;
 using DragonLib.Hash.Basis;
 using K4os.Compression.LZ4.Streams;
+using Scarlet.Crypto;
 using Scarlet.Structures.Archive;
 using Serilog;
 
@@ -29,24 +30,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
         if (id.Type.Value is TypeIdRegistry.EMEM) { // zero idea why this is encrypted, but it is.
             Stream.Seek(-1, SeekOrigin.End);
-            var encryption = (EbonyArchiveEncryption) Stream.ReadByte();
-            Debug.Assert(encryption == EbonyArchiveEncryption.AES, "encryption == EbonyArchiveEncryption.AES");
-
-            using var aes = Aes.Create();
-            aes.Key = EMEM_KEY;
-            var iv = new byte[16];
-            Stream.Seek(-33, SeekOrigin.End);
-            Stream.ReadExactly(iv);
-            aes.IV = iv;
-            aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.None;
-
-            Stream.Position = 0;
-            using var decryptor = aes.CreateDecryptor();
-            var block = new byte[Stream.Length - 33];
-            Stream.ReadExactly(block);
-            Stream.Dispose();
-            Stream = new MemoryStream(decryptor.TransformFinalBlock(block, 0, block.Length));
+            Stream = EbonyCrypto.Decrypt(Stream, EMEM_KEY);
         }
 
         if (Stream.Length < EbonyArchiveHeader.StructSize) {
@@ -68,7 +52,6 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         Buffer = MemoryOwner<byte>.Allocate((int) header[0].DataOffset);
         Stream.ReadExactly(Buffer.Span);
         BlitFileEntries = new BlitStruct<EbonyArchiveFile>(Buffer, (int) header[0].FATOffset, header[0].FileCount);
-
 
         IdMap = new Dictionary<AssetId, int>();
         var blitFileEntries = BlitFileEntries.BlitSpan;
@@ -111,7 +94,6 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
     #endif
     }
 
-    public AssetId AssetId { get; }
     public Stream Stream { get; }
     public MemoryOwner<byte> Buffer { get; }
     public EbonyArchiveHeader Header { get; }
@@ -119,6 +101,8 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
     public Span<EbonyArchiveFile> FileEntries => BlitFileEntries.Span;
     public Dictionary<AssetId, int> IdMap { get; } = new();
     public string DataPath { get; init; }
+
+    public AssetId AssetId { get; }
 
     public void Dispose() {
         Stream.Close();
@@ -129,9 +113,9 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
     public static ulong CalculateHash(Stream stream, long dataSize, bool force = false) =>
         AssetManager.Game switch {
-            EbonyGame.Black => CalculateHashBlack(stream, dataSize),
+            EbonyGame.Black   => CalculateHashBlack(stream, dataSize),
             EbonyGame.Scarlet => CalculateHashScarlet(stream, dataSize, force),
-            _               => 0,
+            _                 => 0,
         };
 
     public static ulong CalculateHashBlack(Stream stream, long dataSize) {
@@ -230,36 +214,8 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         MemoryOwner<byte> buffer;
 
         if ((file.Flags & EbonyArchiveFileFlags.Encrypted) != 0) {
-            Stream.Position = file.DataOffset + file.CompressedSize - 1;
-            var encryption = (EbonyArchiveEncryption) Stream.ReadByte();
-            Debug.Assert(encryption == EbonyArchiveEncryption.AES, "encryption == EbonyArchiveEncryption.AES");
-
-            Stream.Position = file.DataOffset + file.CompressedSize - 33;
-
-            using var aes = Aes.Create();
-            aes.Key = EARC_KEY;
-
-            var iv = new byte[16];
-            var iv64 = MemoryMarshal.Cast<byte, ulong>(iv);
-            Stream.ReadExactly(iv);
-            iv64[0] ^= expandedKey;
-            aes.IV = iv;
-            aes.Padding = PaddingMode.None;
-            Stream.Position = file.DataOffset;
-
-            using var decryptor = aes.CreateDecryptor();
-
-            buffer = MemoryOwner<byte>.Allocate(file.CompressedSize - 33);
-
-            try {
-                Stream.ReadExactly(buffer.Span);
-                var array = buffer.DangerousGetArray();
-                var decrypted = decryptor.TransformFinalBlock(array.Array!, array.Offset, array.Count).AsSpan();
-                decrypted.CopyTo(buffer.Span);
-            } catch {
-                buffer.Dispose();
-                throw;
-            }
+            using var tmp = MemoryOwner<byte>.Allocate(file.CompressedSize);
+            buffer = EbonyCrypto.Decrypt(tmp, EARC_KEY);
         } else {
             buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
 
