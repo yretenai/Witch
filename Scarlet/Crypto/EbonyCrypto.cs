@@ -7,6 +7,7 @@ namespace Scarlet.Crypto;
 
 public static class EbonyCrypto {
     public static Stream Decrypt(Stream data, byte[] key) {
+        data.Seek(-1, SeekOrigin.End);
         var encryption = (EbonyCryptoType) data.ReadByte();
         Debug.Assert(encryption <= EbonyCryptoType.Shuffle, "encryption == CryptoType.Shuffle");
 

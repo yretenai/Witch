@@ -29,7 +29,6 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         Stream = stream;
 
         if (id.Type.Value is TypeIdRegistry.EMEM) { // zero idea why this is encrypted, but it is.
-            Stream.Seek(-1, SeekOrigin.End);
             Stream = EbonyCrypto.Decrypt(Stream, EMEM_KEY);
         }
 
