@@ -2,6 +2,7 @@
 using DragonLib.CommandLine;
 using Scarlet;
 using Scarlet.Structures;
+using Scarlet.Structures.Id;
 using Serilog;
 
 namespace Witch.Commands.Debug;

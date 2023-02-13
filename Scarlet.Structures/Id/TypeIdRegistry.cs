@@ -1,6 +1,10 @@
-﻿namespace Scarlet.Structures;
+﻿namespace Scarlet.Structures.Id;
 
 public static class TypeIdRegistry {
+    static TypeIdRegistry() {
+        RegistryHelper.LoadRegistry(nameof(TypeId), IdTable, uint.TryParse);
+    }
+
     public static Dictionary<uint, string> IdTable { get; set; } = new() {
         { 0x66DBDu, "1024.heb" },
         { 0x193F0u, "2048.heb" },

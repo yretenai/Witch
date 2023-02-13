@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
 using Scarlet.Structures.Archive;
+using Scarlet.Structures.Id;
 using Serilog;
 
 namespace Scarlet.Archive;

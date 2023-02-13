@@ -2,7 +2,7 @@
 using DragonLib.Hash;
 using DragonLib.Hash.Basis;
 
-namespace Scarlet.Structures;
+namespace Scarlet.Structures.Id;
 
 public readonly record struct TypeId {
     public TypeId(ulong value) => Value = (uint) (value >> 44);
@@ -20,7 +20,7 @@ public readonly record struct TypeId {
     public static implicit operator TypeId(AssetId value) => value.Type;
     public static implicit operator uint(TypeId id) => id.Value;
     public static TypeId Parse(string value) => uint.Parse(value);
-    public override string ToString() => TypeIdRegistry.IdTable.TryGetValue(this, out var result) ? result : Value.ToString("X5");
+    public override string ToString() => TypeIdRegistry.IdTable.TryGetValue(this, out var result) ? result : Value.ToString("x5");
     public bool Equals(TypeId? other) => other?.Value == Value;
     public override int GetHashCode() => Value.GetHashCode();
 }

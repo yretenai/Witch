@@ -6,6 +6,7 @@ using DragonLib.Hash.Basis;
 using K4os.Compression.LZ4.Streams;
 using Scarlet.Crypto;
 using Scarlet.Structures.Archive;
+using Scarlet.Structures.Id;
 using Serilog;
 
 namespace Scarlet.Archive;

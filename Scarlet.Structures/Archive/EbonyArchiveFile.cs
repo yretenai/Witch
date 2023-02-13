@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance.Buffers;
+using Scarlet.Structures.Id;
 
 namespace Scarlet.Structures.Archive;
 

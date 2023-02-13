@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using Scarlet.Structures.Archive;
+using Scarlet.Structures.Id;
 
 namespace Scarlet.Archive;
 

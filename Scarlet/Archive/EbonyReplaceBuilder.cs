@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using Scarlet.Structures.Id;
 using Serilog;
 
 namespace Scarlet.Archive;

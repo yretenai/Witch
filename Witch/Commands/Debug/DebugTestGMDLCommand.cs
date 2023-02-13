@@ -2,6 +2,7 @@
 using Scarlet;
 using Scarlet.Gfx;
 using Scarlet.Structures;
+using Scarlet.Structures.Id;
 
 namespace Witch.Commands.Debug;
 

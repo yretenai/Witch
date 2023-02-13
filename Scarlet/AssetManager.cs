@@ -4,6 +4,7 @@ using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
 using Scarlet.Exceptions;
 using Scarlet.Structures.Archive;
+using Scarlet.Structures.Id;
 using Serilog;
 
 namespace Scarlet;
@@ -72,7 +73,7 @@ public sealed class AssetManager : IDisposable {
             }
         }
 
-        AssetId.IdTable = UriTable.ToDictionary(x => x.Key.Value, x => x.Value.DataPath);
+        AssetIdRegistry.IdTable = UriTable.ToDictionary(x => x.Key.Value, x => x.Value.DataPath);
     }
 
     public bool TryCreate<T>(in AssetId path, [MaybeNullWhen(false)] out T instance) where T : IAsset, new() {

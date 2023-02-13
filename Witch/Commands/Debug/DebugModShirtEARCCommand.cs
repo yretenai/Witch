@@ -4,6 +4,7 @@ using Scarlet;
 using Scarlet.Archive;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
+using Scarlet.Structures.Id;
 using Serilog;
 
 namespace Witch.Commands.Debug;
@@ -21,10 +22,10 @@ public class DebugModShirtEARCCommand : EARCCommand {
         var erepTargetId = new AssetId("data://c000.ebex", TypeIdRegistry.EARC);
 
         var modTexId = new AssetId("data://mods/test.btex", TypeIdRegistry.BTEX);
-        AssetId.IdTable[modTexId] = "data://mods/test.btex";
+        AssetIdRegistry.IdTable[modTexId] = "data://mods/test.btex";
 
         var erepBuilder = new EbonyReplaceBuilder(AssetManager.Instance.Replacements[erepTargetId]);
-        foreach (var originalTexId in AssetId.IdTable.Where(x => x.Value.Contains("hu000_000_inner_shirts_1001_b", StringComparison.Ordinal)).Select(x => x.Key)) {
+        foreach (var originalTexId in AssetIdRegistry.IdTable.Where(x => x.Value.Contains("hu000_000_inner_shirts_1001_b", StringComparison.Ordinal)).Select(x => x.Key)) {
             erepBuilder.Replace(originalTexId, modTexId);
         }
 

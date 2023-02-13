@@ -1,4 +1,6 @@
-﻿namespace Scarlet.Structures.Gfx.Model;
+﻿using Scarlet.Structures.Id;
+
+namespace Scarlet.Structures.Gfx.Model;
 
 public record struct GraphicsBinaryHeader {
     public const uint SCARLET_VERSION = 20220707;

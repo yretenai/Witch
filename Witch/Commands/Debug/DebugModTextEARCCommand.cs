@@ -3,6 +3,7 @@ using Scarlet;
 using Scarlet.Archive;
 using Scarlet.Structures;
 using Scarlet.Structures.Archive;
+using Scarlet.Structures.Id;
 
 namespace Witch.Commands.Debug;
 
@@ -18,7 +19,7 @@ public class DebugModTextEARCCommand : EARCCommand {
         var erepTargetId = new AssetId("data://c000.ebex", TypeIdRegistry.EARC);
 
         var modMessageId = new AssetId("data://mods/text_us_9c9439df.parambin", TypeIdRegistry.PARAMBIN);
-        AssetId.IdTable[modMessageId] = "data://mods/text_us_9c9439df.parambin";
+        AssetIdRegistry.IdTable[modMessageId] = "data://mods/text_us_9c9439df.parambin";
         var originalMessageId = new AssetId("data://param/bin/text_us_9c9439df.parambin", TypeIdRegistry.PARAMBIN);
         var erepBuilder = new EbonyReplaceBuilder(AssetManager.Instance.Replacements[erepTargetId]);
         erepBuilder.Replace(originalMessageId, modMessageId);
