@@ -15,8 +15,8 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
     internal const uint MAGIC = 0x46415243; // FARC - File Archive
     internal const ulong CSUM_XOR1 = 0xCBF29CE484222325;
     internal const ulong CSUM_XOR2 = 0x8B265046EDA33E8A;
-    private const uint SEED_EXPANSION = 0x41C64E6D;
-    private const uint SEED_OFFSET = 0x3039;
+    private const uint PRNG_EXPANSION = 0x41C64E6D; // rand() multiplier constant
+    private const uint PRNG_SHIFT = 0x3039; // rand() add constant
     private static readonly byte[] EMEM_KEY = { 0x50, 0x16, 0xec, 0xa2, 0x58, 0x3d, 0x8e, 0xdd, 0x44, 0xfc, 0x15, 0x78, 0x4c, 0x9e, 0x2c, 0xcb };
     private static readonly byte[] EARC_KEY = { 0x9C, 0x6C, 0x5D, 0x41, 0x15, 0x52, 0x3F, 0x17, 0x5A, 0xD3, 0xF8, 0xB7, 0x75, 0x58, 0x1E, 0xCF };
 
@@ -55,15 +55,17 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
 
         IdMap = new Dictionary<AssetId, int>();
         var blitFileEntries = BlitFileEntries.BlitSpan;
+
+        var key = header[0].Checksum ^ CSUM_XOR1;
+        if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
+            key ^= CSUM_XOR2;
+        }
+
         for (var i = 0; i < blitFileEntries.Length; i++) {
             IdMap[FileEntries[i].Id] = i;
 
             if (header[0].VersionMinor < 0) {
                 using var _perfDeobfuscate = new PerformanceCounter<PerformanceHost.EbonyArchive.Deobfuscate>();
-                var key = header[0].Checksum ^ CSUM_XOR1;
-                if ((header[0].Flags & EbonyArchiveFlags.AdvanceChecksum) != 0) {
-                    key ^= CSUM_XOR2;
-                }
 
                 using var fnv = FowlerNollVo.Create((FNV64Basis) key);
                 ref var file = ref blitFileEntries[i];
@@ -73,6 +75,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
                     bytes[1] ^= fnv.HashNext(file.Id);
                     bytes[3] ^= fnv.HashNext(~file.Id);
                     (file.Size, file.CompressedSize) = (file.CompressedSize, file.Size);
+                    key = fnv.Value;
                 }
             }
         }
@@ -208,28 +211,38 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         using var _perf = new PerformanceCounter<PerformanceHost.EbonyArchive.Read>();
         Stream.Position = file.DataOffset;
 
-        var expandedKey = file.Seed == 0 ? 0ul : ((ulong) file.Seed * SEED_EXPANSION + SEED_OFFSET) * SEED_EXPANSION + SEED_OFFSET;
-        Debug.Assert(expandedKey == 0, "expandedKey == 0"); // note: validate if xoring with expandedKey is the same.
+        Span<ulong> expandedKey = stackalloc ulong[1];
+        if (file.Seed != 0) {
+            // basically call rand() twice using seed.
+            expandedKey[0] = file.Seed == 0 ? 0ul : ((ulong) file.Seed * PRNG_EXPANSION + PRNG_SHIFT) * PRNG_EXPANSION + PRNG_SHIFT;
+            var key32 = MemoryMarshal.Cast<ulong, uint>(expandedKey);
+            (key32[0], key32[1]) = (key32[1], key32[0]);
+        }
 
-        MemoryOwner<byte> buffer;
+        var buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
+
+        try {
+            Stream.ReadExactly(buffer.Span);
+        } catch {
+            buffer.Dispose();
+            throw;
+        }
+
+        if (file.Seed != 0) {
+            MemoryMarshal.Cast<byte, ulong>(buffer.Span)[0] ^= expandedKey[0];
+        }
 
         if ((file.Flags & EbonyArchiveFileFlags.Encrypted) != 0) {
-            using var tmp = MemoryOwner<byte>.Allocate(file.CompressedSize);
-            buffer = EbonyCrypto.Decrypt(tmp, EARC_KEY);
-        } else {
-            buffer = MemoryOwner<byte>.Allocate(file.CompressedSize);
-
+            MemoryOwner<byte>? tmp = null;
             try {
-                Stream.ReadExactly(buffer.Span);
+                tmp = EbonyCrypto.Decrypt(buffer, EARC_KEY);
+                buffer.Dispose();
+                buffer = tmp;
             } catch {
+                tmp?.Dispose();
                 buffer.Dispose();
                 throw;
             }
-        }
-
-        if (file.Seed != 0 && (file.Flags & EbonyArchiveFileFlags.Encrypted) != 0) {
-            var u64 = MemoryMarshal.Cast<byte, ulong>(buffer.Span);
-            u64[0] ^= expandedKey;
         }
 
         _perf.Stop();
@@ -241,33 +254,44 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
         try {
             using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EbonyArchive.Decompress>();
             var flags = file.Flags;
-            if ((flags & EbonyArchiveFileFlags.HasCompressType) == 0) {
-                flags &= EbonyArchiveFileFlags.HasCompressType;
-                flags &= (EbonyArchiveFileFlags) ((uint) EbonyArchiveCompressionType.Zlib << 29);
-            } else {
-                Debug.Assert((EbonyArchiveCompressionType) ((uint) flags >> 7) != EbonyArchiveCompressionType.Zlib, "Zlib compression is an assumption.");
+            if ((flags & EbonyArchiveFileFlags.HasCompressType) != 0) {
+                Debug.Assert((EbonyArchiveCompressionType) ((uint) flags >> 7) == EbonyArchiveCompressionType.LZ4Stream, "EbonyArchiveCompressionType == LZ4Stream");
             }
 
             var decompressed = MemoryOwner<byte>.Allocate(file.Size);
             using var inputPin = buffer.Memory.Pin();
-            using var input = new UnmanagedMemoryStream((byte*) inputPin.Pointer, buffer.Length);
 
             switch ((EbonyArchiveCompressionType) ((uint) flags >> 29)) {
-                case EbonyArchiveCompressionType.Zlib: {
-                    input.Position = 2; // skip zlib header
+                case EbonyArchiveCompressionType.ChunkedZlib: {
+                    var buffer32 = MemoryMarshal.Cast<byte, int>(buffer.Span);
+                    var c = 0;
+                    var d = 0;
 
-                    try {
-                        using var zlib = new DeflateStream(input, CompressionMode.Decompress);
-                        zlib.ReadExactly(decompressed.Span);
-                    } catch {
-                        decompressed.Dispose();
-                        throw;
+                    while (d < file.Size) {
+                        var chunkCompressedSize = buffer32[c >> 2];
+                        var chunkSize = buffer32[(c >> 2) + 1];
+                        try {
+                            if (c + 8 + chunkCompressedSize > buffer.Length) {
+                                throw new IndexOutOfRangeException();
+                            }
+
+                            using var input = new UnmanagedMemoryStream(((byte*) inputPin.Pointer) + c + 10, chunkCompressedSize - 2);
+                            using var zlib = new DeflateStream(input, CompressionMode.Decompress);
+                            zlib.ReadExactly(decompressed.Span.Slice(d, chunkSize));
+                        } catch {
+                            decompressed.Dispose();
+                            throw;
+                        }
+
+                        c = (c + chunkCompressedSize + 8).Align(4);
+                        d += chunkSize;
                     }
 
                     break;
                 }
                 case EbonyArchiveCompressionType.LZ4Stream: {
                     try {
+                        using var input = new UnmanagedMemoryStream((byte*) inputPin.Pointer, buffer.Length);
                         using var lz = LZ4Stream.Decode(input);
                         lz.ReadExactly(decompressed.Span);
                     } catch {

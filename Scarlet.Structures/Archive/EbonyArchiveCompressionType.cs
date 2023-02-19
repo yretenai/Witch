@@ -1,6 +1,6 @@
 ﻿namespace Scarlet.Structures.Archive;
 
 public enum EbonyArchiveCompressionType : uint {
-    Zlib = 1, // todo: validate this
+    ChunkedZlib = 0,
     LZ4Stream = 2,
 }

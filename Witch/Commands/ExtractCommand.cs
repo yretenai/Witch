@@ -97,10 +97,15 @@ public class ExtractCommand : EARCCommand {
             if (!archiveLookup.TryGetValue(archivePath, out var linkTarget)) {
                 if (archivePath.StartsWith("$archives")) {
                     linkTarget = archives + '/' + archivePath[10..];
+                } else if (archivePath.EndsWith("autoexternal.earc")) {
+                    linkTarget = archives + '/' + archivePath;
                 } else {
-                    Debugger.Break();
                     continue;
                 }
+            }
+
+            if (linkTarget.EndsWith(".earc")) {
+                continue;
             }
 
             var path = ScarletHelpers.StripPath(reference.DataPath);
@@ -110,6 +115,10 @@ public class ExtractCommand : EARCCommand {
             path = path.Trim('/', '\\', '@');
             var outputPath = target + '/' + path;
             if (File.Exists(outputPath)) {
+                continue;
+            }
+
+            if (!File.Exists(linkTarget)) {
                 continue;
             }
 
