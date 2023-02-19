@@ -5,15 +5,15 @@ using Scarlet.Structures.Id;
 namespace Scarlet.Archive;
 
 // PACK files are basically just an empty EbonyArchive with only IDs.
-public readonly record struct EbonyPatch : IAsset, IDisposable {
+public readonly record struct EbonyPack : IAsset, IDisposable {
     private const uint MAGIC = 0x5041434B; // PACK
 
-    public EbonyPatch() {
+    public EbonyPack() {
         Buffer = MemoryOwner<byte>.Empty;
         BlitIDs = BlitStruct<AssetId>.Empty;
     }
 
-    public EbonyPatch(AssetId assetId, MemoryOwner<byte> pack) {
+    public EbonyPack(AssetId assetId, MemoryOwner<byte> pack) {
         if (assetId.Type.Value is not TypeIdRegistry.EARC) {
             throw new TypeIdMismatchException(assetId, TypeIdRegistry.EARC);
         }
