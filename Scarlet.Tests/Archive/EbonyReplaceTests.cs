@@ -5,7 +5,7 @@ using Scarlet.Structures.Id;
 
 namespace Scarlet.Tests.Archive;
 
-public class EREPTests {
+public class EbonyReplaceTests {
     [Fact]
     public void ShouldDeserializeEREPSingle() {
         using var owner = MemoryOwner<byte>.Allocate(16);
