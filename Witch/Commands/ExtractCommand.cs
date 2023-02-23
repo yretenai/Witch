@@ -97,7 +97,7 @@ public class ExtractCommand : EARCCommand {
             if (!archiveLookup.TryGetValue(archivePath, out var linkTarget)) {
                 if (archivePath.StartsWith("$archives")) {
                     linkTarget = archives + '/' + archivePath[10..];
-                } else if (archivePath.EndsWith("autoexternal.earc")) {
+                } else if (AssetManager.Game is EbonyGame.Black) {
                     linkTarget = archives + '/' + archivePath;
                 } else {
                     continue;
