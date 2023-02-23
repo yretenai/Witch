@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Scarlet.Structures.Crypto;
 
-namespace Scarlet.Crypto;
+namespace Scarlet.Archive;
 
 public static class EbonyCrypto {
     public static Stream Decrypt(Stream data, byte[] key) {
