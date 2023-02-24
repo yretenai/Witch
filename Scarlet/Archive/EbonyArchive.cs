@@ -254,7 +254,7 @@ public readonly record struct EbonyArchive : IAsset, IDisposable {
             using var _perfDecrypt = new PerformanceCounter<PerformanceHost.EbonyArchive.Decompress>();
             var flags = file.Flags;
             if ((flags & EbonyArchiveFileFlags.HasCompressType) != 0) {
-                Debug.Assert((EbonyArchiveCompressionType) ((uint) flags >> 7) == EbonyArchiveCompressionType.LZ4Stream, "EbonyArchiveCompressionType == LZ4Stream");
+                Debug.Assert((EbonyArchiveCompressionType) ((uint) flags >> 29) == EbonyArchiveCompressionType.LZ4Stream, "EbonyArchiveCompressionType == LZ4Stream");
             }
 
             var decompressed = MemoryOwner<byte>.Allocate(file.Size);

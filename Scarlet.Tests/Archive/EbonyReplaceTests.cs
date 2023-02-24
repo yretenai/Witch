@@ -1,6 +1,5 @@
 ﻿using CommunityToolkit.HighPerformance.Buffers;
 using Scarlet.Archive;
-using Scarlet.Structures;
 using Scarlet.Structures.Id;
 
 namespace Scarlet.Tests.Archive;
