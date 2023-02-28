@@ -11,7 +11,7 @@ public sealed class AssetManager : IDisposable {
     public static AssetManager Instance { get; } = new();
 
     public static EbonyGame Game { get; set; } = EbonyGame.Scarlet;
-
+    public static string ArchivesRoot { get; private set; } = string.Empty;
     public ConcurrentDictionary<AssetId, EbonyArchive> Archives { get; } = new();
     public ConcurrentDictionary<AssetId, EbonyReplace> Replacements { get; } = new();
     public Dictionary<AssetId, FileReference> UriTable { get; } = new();
@@ -26,8 +26,15 @@ public sealed class AssetManager : IDisposable {
 
     public void LoadArchive(string file) {
         var isEmem = file.EndsWith(".emem", StringComparison.OrdinalIgnoreCase);
-        var name = $"data://{Path.GetFileNameWithoutExtension(file)}.{(isEmem ? "emem" : "ebex")}";
-        var id = new AssetId(name,  isEmem ? TypeIdRegistry.EMEM : TypeIdRegistry.EARC);
+
+        var name = $"{Path.GetFileNameWithoutExtension(file)}.{(isEmem ? "emem" : "ebex")}";
+        if (file.StartsWith(ArchivesRoot)) {
+            name = $"{Path.GetDirectoryName(file)![ArchivesRoot.Length..].Replace('\\', '/')}/{name}";
+        }
+
+        name = "data://" + name.TrimStart('/');
+
+        var id = new AssetId(name, isEmem ? TypeIdRegistry.EMEM : TypeIdRegistry.EARC);
         var archive = new EbonyArchive(id, name, new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
         Archives[id] = archive;
     }
@@ -166,6 +173,8 @@ public sealed class AssetManager : IDisposable {
     }
 
     public static void DetectGame(string installDir) {
+        ArchivesRoot = Path.Combine(Path.Combine(installDir, "datas"));
+
         var exe = Directory.GetFiles(installDir, "*.exe", SearchOption.TopDirectoryOnly).Select(x => Path.GetFileNameWithoutExtension(x).ToLowerInvariant()).ToHashSet();
 
         if (exe.Contains("ffxv_s")) {
